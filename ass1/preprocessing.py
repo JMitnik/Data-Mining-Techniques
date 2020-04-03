@@ -2,7 +2,14 @@ import pandas as pd
 from utils import alias_item
 
 def transform_ODI_dataset(df):
-    # Transform column names
+    # TODO:
+    # - Transform deserves_money into numbers, put rest to unknown (-1)
+    # - Extract fun text content from good_day_text_1
+    # - Extract fun text content from good_day_text_2
+    # - Random_nr (allow only Ints, remove the drop table command)
+    # - Add date_of_birth from @Thomasdegier code
+
+    # New readable column names
     new_columns = [
         'programme',
         'did_ml',
@@ -23,8 +30,8 @@ def transform_ODI_dataset(df):
     ]
     df.columns = new_columns
 
-    # Format first column programme
-    # First column has many different aliases
+    # Format categoricals first
+    # First column has many different aliases, get the most out of them
     programme_alias_map = {
         'ai': ['ai', 'artificial intelligence'],
         'cs': ['computer science', 'cs'],
@@ -38,6 +45,8 @@ def transform_ODI_dataset(df):
     }
 
     df['programme'] = df['programme'].apply(alias_item, args=(programme_alias_map,)).astype('category')
+    df['gender'] = df['gender'].astype('category')
+    df['chocolate'] = df['chocolate'].astype('category')
 
     # Format booleans
     df['did_ml'] = df['did_ml'].replace({ 'no': 0, 'yes': 1, 'unknown': -1 })
@@ -45,10 +54,6 @@ def transform_ODI_dataset(df):
     df['did_stats'] = df['did_stats'].replace({ 'sigma': 0, 'mu': 1, 'unknown': -1 })
     df['did_db'] = df['did_db'].replace({ 'nee': 0, 'ja': 1, 'unknown': -1 })
     df['did_stand'] = df['did_stand'].replace({ 'no': 0, 'yes': 1, 'unknown': -1 })
-
-    # Format categoricals
-    df['gender'] = df['gender'].astype('category')
-    df['chocolate'] = df['chocolate'].astype('category')
 
     # Format nr neighbours
     neighbour_alias_map = {
