@@ -1,5 +1,21 @@
 import pandas as pd
+import re
+import numpy as np
 from utils import alias_item
+
+def clean_date_of_birth(df):
+    date_col = pd.DataFrame(df['date_of_birth'])
+    i=0
+    for date in date_col.values:
+        df.loc[i, 'date_of_birth'] = -1
+        date = str(date)
+        seperator = ('/', ' ', '-', '.', ',', '_')
+        date = re.split("[%s]" % ("".join(seperator)), date)
+        for values in date:
+            if len(values) == 4 and values.isdigit():
+                df.loc[i, 'date_of_birth'] = np.array(values)
+        i+=1
+    return df
 
 def transform_ODI_dataset(df):
     # TODO:
@@ -7,7 +23,6 @@ def transform_ODI_dataset(df):
     # - Extract fun text content from good_day_text_1
     # - Extract fun text content from good_day_text_2
     # - Random_nr (allow only Ints, remove the drop table command)
-    # - Add date_of_birth from @Thomasdegier code
 
     # New readable column names
     new_columns = [
@@ -54,6 +69,10 @@ def transform_ODI_dataset(df):
     df['did_stats'] = df['did_stats'].replace({ 'sigma': 0, 'mu': 1, 'unknown': -1 })
     df['did_db'] = df['did_db'].replace({ 'nee': 0, 'ja': 1, 'unknown': -1 })
     df['did_stand'] = df['did_stand'].replace({ 'no': 0, 'yes': 1, 'unknown': -1 })
+
+    # Format year of birth
+
+    df = clean_date_of_birth(df)
 
     # Format nr neighbours
     neighbour_alias_map = {
