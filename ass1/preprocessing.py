@@ -1,5 +1,9 @@
 import pandas as pd
 import re
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.compose import make_column_transformer
+from sklearn.pipeline import make_pipeline
+import nltk
 import numpy as np
 from utils import alias_item
 
@@ -18,10 +22,18 @@ def clean_date_of_birth(df):
     return df
 
 def transform_ODI_dataset(df):
+    """
+    Transforms existing dataframe by renaming columns, change their code, and imputes missing values.
+
+    Arguments:
+        df
+
+    Returns:
+        df
+    """
     # TODO:
+    # - Transform chocolate
     # - Transform deserves_money into numbers, put rest to unknown (-1)
-    # - Extract fun text content from good_day_text_1
-    # - Extract fun text content from good_day_text_2
     # - Random_nr (allow only Ints, remove the drop table command)
 
     # New readable column names
@@ -71,7 +83,6 @@ def transform_ODI_dataset(df):
     df['did_stand'] = df['did_stand'].replace({ 'no': 0, 'yes': 1, 'unknown': -1 })
 
     # Format year of birth
-
     df = clean_date_of_birth(df)
 
     # Format nr neighbours
@@ -83,4 +94,32 @@ def transform_ODI_dataset(df):
 
     df['nr_neighbours'] = df['nr_neighbours'].apply(alias_item, args=(neighbour_alias_map,)).astype('int')
 
+    # Tokenize open text
+    # TODO: Stem words, remove stop-words
+    df['good_day_text_1'] = df['good_day_text_1'].apply(lambda sentence: ' '.join([word.lower() for word in nltk.word_tokenize(sentence)]))
+    df['good_day_text_2'] = df['good_day_text_2'].apply(lambda sentence: ' '.join([word.lower() for word in nltk.word_tokenize(sentence)]))
+
+    # TODO: Check for empty values / Np.Nans and such
     return df
+
+
+def make_preprocessing_pipeline():
+    """
+    Creates an SKLearn pipeline which converts a transformed
+     Pandas dataframe into a classifier-ready numpy tensor.
+
+    Arguments:
+        df
+    """
+    # Define transformations for open text (good_day_text_1 and good_day_text_2)
+    count_trans = CountVectorizer()
+    tf_idf_trans = TfidfTransformer()
+    text_trans = make_pipeline(count_trans, tf_idf_trans)
+
+    # Connect transformations for all columns
+    col_trans = make_column_transformer(
+        (text_trans, ['good_day_text_1']),
+        remainder='drop'
+    )
+
+    return col_trans
