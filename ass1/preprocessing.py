@@ -35,6 +35,7 @@ def transform_ODI_dataset(df):
     # - Transform chocolate
     # - Transform deserves_money into numbers, put rest to unknown (-1)
     # - Random_nr (allow only Ints, remove the drop table command)
+    # - Stress level
 
     # New readable column names
     new_columns = [
