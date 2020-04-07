@@ -1,8 +1,10 @@
 import pandas as pd
 import re
+from sklearn.compose import make_column_selector
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.compose import make_column_transformer
 from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 import nltk
 import numpy as np
 from utils import alias_item
@@ -104,7 +106,10 @@ def transform_ODI_dataset(df):
     return df
 
 
-def make_preprocessing_pipeline():
+def make_ODI_preprocess_pipeline(
+    data,
+    text_min_count
+):
     """
     Creates an SKLearn pipeline which converts a transformed
      Pandas dataframe into a classifier-ready numpy tensor.
@@ -112,15 +117,38 @@ def make_preprocessing_pipeline():
     Arguments:
         df
     """
-    # Define transformations for open text (good_day_text_1 and good_day_text_2)
-    count_trans = CountVectorizer()
-    tf_idf_trans = TfidfTransformer()
-    text_trans = make_pipeline(count_trans, tf_idf_trans)
+    # Check which one-hot columns are used as predictors
+    default_oh_columns = [
+        'programme',
+        'gender',
+        'did_stand',
+        'did_ml',
+        'did_db',
+        'did_stats'
+    ]
+    present_oh_columns = [column for column in default_oh_columns if column in data.columns]
 
-    # Connect transformations for all columns
+    # Make BOW, include only words with at least `text_min_count`
+    bow_encoder = CountVectorizer(min_df=text_min_count)
+
+    # One-hot-encoder for categorical and boolean features
+    oh_encoder = OneHotEncoder()
+
     col_trans = make_column_transformer(
-        (text_trans, ['good_day_text_1']),
+        (bow_encoder, 'good_day_text_1'),
+        (bow_encoder, 'good_day_text_2'),
+        (oh_encoder, [
+            *present_oh_columns
+            # 'did_ir', # TODO: Something weird with did_ir going on
+        ]),
         remainder='drop'
     )
 
     return col_trans
+
+def preprocess_target(target):
+    # Assume for now target is oh encoded.
+    oh_encoder = LabelEncoder()
+    target = oh_encoder.fit_transform(target)
+
+    return oh_encoder, target
