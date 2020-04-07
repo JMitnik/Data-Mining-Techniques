@@ -11,6 +11,7 @@ from preprocessing import transform_ODI_dataset, make_preprocessing_pipeline
 df = pd.read_csv("data/ODI-2020.csv", sep=";", encoding="utf-8")
 df = transform_ODI_dataset(df)
 
+# TODO: Make plots (histograms)
 
 # %%
 # # Create Preprocessing Pipeline for prediction
