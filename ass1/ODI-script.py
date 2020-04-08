@@ -31,6 +31,11 @@ config = Config(
 df = pd.read_csv("data/ODI-2020.csv", sep=";", encoding="utf-8")
 df = transform_ODI_dataset(df)
 
+#%% Part 1.5 :) Visualizing cleaned data
+from datavisualization import single_freqtable, histogram
+single_freqtable(df, 'programme')
+#histogram(df, 'stress_level') #fix stress level first ints from 0-100 in 10 bins?
+
 #%% Part 2 of preprocessing: Make it ready for ML algorithms
 working_data = df.copy() # Copy as we will mutate the original dataframe otherwise
 target = working_data.pop('programme') #Pop removes programme from
