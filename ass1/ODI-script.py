@@ -5,6 +5,7 @@ from scipy.sparse import find
 from sklearn.compose import make_column_selector
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.compose import make_column_transformer
 from sklearn.pipeline import make_pipeline
@@ -49,20 +50,24 @@ target_encoder, target = preprocess_target(target)
 
 X_train, X_test, y_train, y_test = train_test_split(working_data, target, test_size=0.2)
 
-# Create a few classification pipelines for comparisons
-classifier_svc = make_pipeline(preprocessing_pipeline_ODI, SVC())
-classifier_tree = make_pipeline(preprocessing_pipeline_ODI, DecisionTreeClassifier())
+# Instantiate a few classification pipelines for comparisons
+algorithms = [
+    SVC(),
+    DecisionTreeClassifier(),
+    RandomForestClassifier(),
+]
 
-# Apply cross-validation to get representation of score
-svc_performance = cross_val_score(classifier_svc, X_train, y_train).mean()
-tree_performance = cross_val_score(classifier_tree, X_train, y_train).mean()
+fitted_pipelines = []
 
-# Now actually do training on complete training data
-classifier_svc.fit(X_train, y_train)
-classifier_tree.fit(X_train, y_train)
+# Try each algorithm out
+for algo in algorithms:
+    classification_pipeline = make_pipeline(preprocessing_pipeline_ODI, algo)
 
-# %%
-# Check feature importances of decision tree
-classifier_tree.named_steps.columntransformer.transformers[-1][1].get_feature_names()
-# classifier_tree.named_steps.decisiontreeclassifier.n_features_
+    # Measure general performance
+    avg_cv_score = cross_val_score(classification_pipeline, X_train, y_train).mean()
+    print(avg_cv_score)
+    # Fit model
+    classification_pipeline.fit(X_train, y_train)
+    fitted_pipelines.append(classification_pipeline)
+
 # %%
