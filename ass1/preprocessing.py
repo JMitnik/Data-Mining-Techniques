@@ -75,14 +75,14 @@ def transform_ODI_dataset(df):
     }
 
 
-    chocolate_map={-1:['I have no idea what you are talking about','unknown'],
-                   0:['neither'],
-                   1:['fat'],
-                   2:['slim']
-                       }
+    # chocolate_map={-1:['I have no idea what you are talking about','unknown'],
+    #                0:['neither'],
+    #                1:['fat'],
+    #                2:['slim']
+    #                    }
     
     df['programme'] = df['programme'].apply(alias_item, args=(programme_alias_map,)).astype('category')
-    df['chocolate'] = df['chocolate'].apply(alias_item, args=(chocolate_map)).astype('category')
+    # df['chocolate'] = df['chocolate'].apply(alias_item, args=(chocolate_map)).astype('category')
     
 
     # Format booleans
