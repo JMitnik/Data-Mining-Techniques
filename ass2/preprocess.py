@@ -32,6 +32,8 @@ def transform_titanic_dataset(df):
 
     df.columns = new_columns
 
+    df['class'] = df['class'].astype('category')
+    df['class'] = df['port_of_departure'].astype('category')
     df['gender'] = df['gender'].replace({'male':0, 'female':1})
     df['age'] = df['age'].replace({np.NaN : -1}).astype('int')
     df['cabin_nr'] = df['cabin_nr'].str.split(' ').replace({np.NaN : -1})

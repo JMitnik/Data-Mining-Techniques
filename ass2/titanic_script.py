@@ -35,6 +35,8 @@ import seaborn as sns
 import importlib
 # Let's select some interesting data we might want to visualize in a grid
 interesting_data_df = training_df[[
+    'class',
+    'port_of_departure',
     'gender',
     'survived',
     'age',
@@ -42,7 +44,7 @@ interesting_data_df = training_df[[
     'passenger_fare',
     'nr_parents_children'
 ]]
-grid = sns.PairGrid(interesting_data_df, hue="gender").add_legend()
+grid = sns.PairGrid(interesting_data_df, hue="class").add_legend()
 grid.map_diag(sns.distplot, hist=False, rug=True)
 grid.map_offdiag(sns.scatterplot)
 
