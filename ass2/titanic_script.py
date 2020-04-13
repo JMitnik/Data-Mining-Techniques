@@ -23,6 +23,28 @@ test_df = pd.read_csv("data/test.csv", sep=",", encoding="utf-8")
 training_df = transform_titanic_dataset(training_df)
 test_df = transform_titanic_dataset(test_df)
 
-print (test_df['cabin_nr'].value_counts())
+
+# %%
+# Use describe to get some generic statistics
+training_df.describe()
 
 
+
+# %%
+import seaborn as sns
+import importlib
+# Let's select some interesting data we might want to visualize in a grid
+interesting_data_df = training_df[[
+    'gender',
+    'survived',
+    'age',
+    'nr_siblings_spouses',
+    'passenger_fare',
+    'nr_parents_children'
+]]
+grid = sns.PairGrid(interesting_data_df, hue="gender").add_legend()
+grid.map_diag(sns.distplot, hist=False, rug=True)
+grid.map_offdiag(sns.scatterplot)
+
+
+# %%
