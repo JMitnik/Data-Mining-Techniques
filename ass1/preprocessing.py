@@ -5,7 +5,7 @@ from sklearn.feature_selection import SelectKBest
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.compose import make_column_transformer
 from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import make_pipeline
+from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 import nltk
 import numpy as np
@@ -190,6 +190,7 @@ def make_ODI_preprocess_pipeline(
     # One-hot-encoder for categorical and boolean features
     oh_encoder = OneHotEncoder()
 
+    # Make feature-engineering transformer
     col_trans = make_column_transformer(
         (bow_encoder, 'good_day_text_1'),
         (bow_encoder, 'good_day_text_2'),
@@ -200,20 +201,18 @@ def make_ODI_preprocess_pipeline(
         remainder='drop'
     )
 
-    # Feature Selection
-    model = LogisticRegression()
-    selection = make_pipeline(
-        SelectKBest(),
-    )
+    preprocessing_pipeline = Pipeline([
+        ('feature_engineering', col_trans),
+    ])
 
-    return selection
+    return preprocessing_pipeline
+
+
 def prevent_overflow(df):
     j=-1
-    print("yo"+df.iloc[36])
     for i in df.map(len):
         j += 1
         if i > 15:
-            print(j)
             df.iloc[j] = -1
     return df
 

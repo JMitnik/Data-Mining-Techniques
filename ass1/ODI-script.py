@@ -3,12 +3,15 @@
 import pandas as pd
 from scipy.sparse import find
 from sklearn.compose import make_column_selector
-from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+from sklearn.linear_model import Lasso
+from sklearn.svm import SVC, LinearSVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_selection import SelectFromModel, SelectKBest
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.compose import make_column_transformer
-from sklearn.pipeline import make_pipeline
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import cross_val_score, train_test_split
 import nltk
@@ -20,7 +23,7 @@ import preprocessing
 importlib.reload(preprocessing)
 from preprocessing import transform_ODI_dataset, make_ODI_preprocess_pipeline, preprocess_target
 
-# Config
+# Configgg
 config = Config(
     min_word_count=4,
     random_state=0
@@ -57,18 +60,31 @@ algorithms = [
     RandomForestClassifier(),
 ]
 
-fitted_pipelines = []
-
 # Try each algorithm out
 for algo in algorithms:
-    classification_pipeline = make_pipeline(preprocessing_pipeline_ODI, algo)
+    nr_features = 30
+    classification_pipeline = Pipeline([
+        ('engineering', preprocessing_pipeline_ODI),
+        ('selection', SelectKBest(k=nr_features)),
+        ('mode', algo)
+    ])
 
+    top_features_idx = classification_pipeline.named_steps.selection.scores_.argpartition(-nr_features)[-nr_features:]
+    top_features = classification_pipeline.named_steps.engineering.named_steps.feature_engineering.get_feature_names()[top_features_idx]
+
+    print(top_features)
+    avg_train_accuracy = 0
+
+    print(avg_train_accuracy)
     # Measure general performance
-    avg_cv_score = cross_val_score(classification_pipeline, X_train, y_train).mean()
-    print(avg_cv_score)
-    # Fit model
+
     classification_pipeline.fit(X_train, y_train)
-    fitted_pipelines.append(classification_pipeline)
+    test_predictions = classification_pipeline.predict(X_test)
+    test_accuracy = accuracy_score(test_predictions, y_test)
+    print(f"For model {type(algo).__name__}, the avg performance for training was {avg_train_accuracy}, and for test {test_accuracy} \n",
+          f"\t Predictions were: {test_predictions} \n",
+          f"\t Truth is: ${y_test} \n"
+    )
 
 # %%
 
