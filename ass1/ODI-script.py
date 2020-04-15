@@ -38,9 +38,8 @@ from datavisualization import single_freqtable, histogram
 #histogram(df, 'stress_level') #fix stress level first ints from 0-100 in 10 bins?
 
 #%% Part 3 of preprocessing: Make it ready for ML algorithms
-working_data = df.copy() # Copy as we will mutate the original dataframe otherwise
+working_data = df.copy().dropna() # Copy as we will mutate the original dataframe otherwise
 target = working_data.pop('programme') #Pop removes programme from
-
 
 # Creates a pipeline for the input which will transform our input to ndarrays
 preprocessing_pipeline_ODI = make_ODI_preprocess_pipeline(
@@ -70,5 +69,8 @@ for algo in algorithms:
     # Fit model
     classification_pipeline.fit(X_train, y_train)
     fitted_pipelines.append(classification_pipeline)
+
+# %%
+
 
 # %%

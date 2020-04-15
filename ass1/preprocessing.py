@@ -1,8 +1,10 @@
 import pandas as pd
 import re
 from sklearn.compose import make_column_selector
+from sklearn.feature_selection import SelectKBest
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.compose import make_column_transformer
+from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 import nltk
@@ -74,16 +76,8 @@ def transform_ODI_dataset(df):
         'ft': ['finance & technology', 'finance and technology']
     }
 
-
-    # chocolate_map={-1:['I have no idea what you are talking about','unknown'],
-    #                0:['neither'],
-    #                1:['fat'],
-    #                2:['slim']
-    #                    }
-    
     df['programme'] = df['programme'].apply(alias_item, args=(programme_alias_map,)).astype('category')
-    # df['chocolate'] = df['chocolate'].apply(alias_item, args=(chocolate_map)).astype('category')
-    
+
     # - Random_nr (allow only Ints, remove the drop table command)
     df['random_nr']=df['random_nr'].str.replace('four','1')
     df['random_nr']=df['random_nr'].str.replace('nine','1')
@@ -93,12 +87,12 @@ def transform_ODI_dataset(df):
     df['random_nr']=df['random_nr'].str.replace(',\d','1',regex=True)
     prevent_overflow(df['random_nr'])
     print(df['random_nr'].loc[36])
-    df['random_nr']=df['random_nr'].astype(np.int64)    
-    
+    df['random_nr']=df['random_nr'].astype(np.int64)
+
     # - Transforms deserves_money into numbers, put rest to unknown (-1)
     df['deserves_money']=df['deserves_money'].replace({
         '-':-1,
-        'the amount of money you want to distribute/the number of people':-1, 
+        'the amount of money you want to distribute/the number of people':-1,
         'Depends on the number of people it is divided between. When there are 10 people - say 15 euros':15,
         '100/470':0.212,
         '100/N':0.356,
@@ -127,7 +121,6 @@ def transform_ODI_dataset(df):
         'Not at all, you should win it':-1,
         '1/500':0.002,
         '0%  100%':-1
-
     })
     df['deserves_money']=df['deserves_money'].str.replace(',','.')
     df['deserves_money']=df['deserves_money'].str.replace('?','-1')
@@ -136,16 +129,8 @@ def transform_ODI_dataset(df):
     df['deserves_money']=df['deserves_money'].str.replace('\u20AC','',regex=True)
     df['deserves_money']=df['deserves_money'].str.replace('%','',regex=True)
 
-    
+
     df['deserves_money']=df['deserves_money'].astype(np.float64)
-
-
-    # Format Category
-    
-    print(df['chocolate'])
-    print(df['random_nr'])
-    print(df['deserves_money'])
-    print(df['stress_level'])
 
     # Format booleans
     df['did_ml'] = df['did_ml'].replace({ 'no': 0, 'yes': 1, 'unknown': -1 })
@@ -215,7 +200,13 @@ def make_ODI_preprocess_pipeline(
         remainder='drop'
     )
 
-    return col_trans
+    # Feature Selection
+    model = LogisticRegression()
+    selection = make_pipeline(
+        SelectKBest(),
+    )
+
+    return selection
 def prevent_overflow(df):
     j=-1
     print("yo"+df.iloc[36])

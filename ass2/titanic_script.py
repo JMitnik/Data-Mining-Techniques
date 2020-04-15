@@ -13,7 +13,6 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import cross_val_score, train_test_split
 import nltk
 
-
 from preprocess import transform_titanic_dataset
 
 #%% Part 1, Data Preparation
