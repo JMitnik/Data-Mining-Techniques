@@ -48,22 +48,22 @@ def transform_ODI_dataset(df, programme_threshold=5):
 
     # New readable column names
     new_columns = [
-        'programme',
-        'did_ml',
-        'did_ir',
-        'did_stats',
-        'did_db',
-        'gender',
-        'chocolate',
-        'date_of_birth',
-        'nr_neighbours',
-        'did_stand',
-        'stress_level',
-        'deserves_money',
-        'random_nr',
-        'bedtime_yesterday',
-        'good_day_text_1',
-        'good_day_text_2'
+        'programme',        #categorical value; done
+        'did_ml',           #categorical value; Yes, No, Unknown
+        'did_ir',           #categorical value; Yes, No, Unknown
+        'did_stats',        ##categorical value; Yes, No, Unknown
+        'did_db',           #categorical value; Yes, No, Unknown
+        'gender',           #categorical value; Male, Female, Unknown
+        'chocolate',        #categorical value; Slim, Fat, Neither, No Idea, Unknown
+        'date_of_birth',    #numerical value; 1920-2004 / done
+        'nr_neighbours',    #numerical value; 0-10
+        'did_stand',        #categorical value; Yes, No, Unknown
+        'stress_level',     #numerical value; 0-100
+        'deserves_money',   #numerical value; 0-100
+        'random_nr',        #numerical value; just a random int
+        'bedtime_yesterday',#numerical value; HH:MM values?
+        'good_day_text_1',  #categorical value;
+        'good_day_text_2'   #categorical value;
     ]
     df.columns = new_columns
 
