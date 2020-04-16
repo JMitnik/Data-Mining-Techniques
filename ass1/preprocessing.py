@@ -6,6 +6,7 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.compose import make_column_transformer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline, Pipeline
+from sklearn.utils import safe_sqr
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 import nltk
 import numpy as np
@@ -25,9 +26,9 @@ def clean_date_of_birth(df):
                 if values > 1920 and values < 2004:
                     df.loc[i, 'date_of_birth'] = values
         i+=1
-    return df
+    return df.dropna()
 
-def transform_ODI_dataset(df):
+def transform_ODI_dataset(df, programme_threshold=5):
     """
     Transforms existing dataframe by renaming columns, change their code, and imputes missing values.
 
@@ -80,7 +81,11 @@ def transform_ODI_dataset(df):
         'ft': ['finance & technology', 'finance and technology']
     }
 
-    df['programme'] = df['programme'].apply(alias_item, args=(programme_alias_map,)).astype('category')
+    df['programme'] = df['programme'].apply(alias_item, args=(programme_alias_map,))
+
+    if programme_threshold is not None:
+        df = df.groupby('programme').filter(lambda x: len(x) > programme_threshold).dropna()
+        df['programme'] = df['programme'].astype('category')
 
     # - Random_nr (allow only Ints, remove the drop table command)
     df['random_nr']=df['random_nr'].str.replace('four','1')
@@ -220,3 +225,36 @@ def preprocess_target(target):
     target = oh_encoder.fit_transform(target)
 
     return oh_encoder, target
+
+
+def read_selected_features_from_pipeline(classification_pipeline, is_sorted=True):
+    """
+    Given a classification pipeline, sort all of the features
+    from the 'selector', as well as return the selection
+    of features
+
+    Arguments:
+        classification_pipeline
+    """
+    rfe_step = classification_pipeline.named_steps.selection.named_steps.rfe
+
+    # Get selected features
+    sorted_idxs = np.argsort(safe_sqr(rfe_step.estimator_.coef_).sum(axis=0))
+    mask = rfe_step.support_
+    selected_features = np.array(read_all_features_from_pipeline(classification_pipeline))[mask]
+
+    if not is_sorted:
+        return selected_features
+
+    # Sort selected features from bottom (worst) to highest (best)
+    return selected_features[sorted_idxs]
+
+def read_all_features_from_pipeline(classification_pipeline):
+    """
+    Given the classification pipeline, reads all features from the engineering part
+
+    Arguments:
+        classification_pipeline
+    """
+
+    return classification_pipeline.named_steps.engineering.get_feature_names()

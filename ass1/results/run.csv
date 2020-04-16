@@ -1,0 +1,16 @@
+,model_name,avg_cv_train_acc,var_cv_train_acc,avg_cv_train_balanced_acc,var_cv_train_balanced_acc,test_acc,test_balanced_acc,nr_features,top_5_features,bottom_5_features,test_balanced_accuracy
+0,SVC,0.30436974789915966,0.0013728973942518188,0.1345887445887446,0.00030729184235677766,0.3409090909090909,,,"[array(['countvectorizer-1__of', 'countvectorizer-2__sport',
+       'countvectorizer-1__and', 'countvectorizer-2__breakfast',
+       'onehotencoder__x2_-1.0'], dtype='<U29')]","[array(['countvectorizer-2__day', 'countvectorizer-2__sports',
+       'countvectorizer-2__to', 'countvectorizer-1__sun',
+       'countvectorizer-2__nice'], dtype='<U29')]",0.1685185185185185
+1,DecisionTreeClassifier,0.29361344537815126,0.004744184732716616,0.1443073593073593,0.0026832593092333337,0.29545454545454547,,,"[array(['countvectorizer-1__of', 'countvectorizer-2__sport',
+       'countvectorizer-1__and', 'countvectorizer-2__breakfast',
+       'onehotencoder__x2_-1.0'], dtype='<U29')]","[array(['countvectorizer-2__day', 'countvectorizer-2__sports',
+       'countvectorizer-2__to', 'countvectorizer-1__sun',
+       'countvectorizer-2__nice'], dtype='<U29')]",0.12990196078431374
+2,RandomForestClassifier,0.2929411764705882,0.002321756938069346,0.13512987012987013,0.0011035662749948462,0.4090909090909091,,,"[array(['countvectorizer-1__of', 'countvectorizer-2__sport',
+       'countvectorizer-1__and', 'countvectorizer-2__breakfast',
+       'onehotencoder__x2_-1.0'], dtype='<U29')]","[array(['countvectorizer-2__day', 'countvectorizer-2__sports',
+       'countvectorizer-2__to', 'countvectorizer-1__sun',
+       'countvectorizer-2__nice'], dtype='<U29')]",0.14906832298136646
