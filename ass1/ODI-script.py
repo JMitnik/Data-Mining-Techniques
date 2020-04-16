@@ -51,6 +51,8 @@ encoding_pipeline = make_encoding_pipeline(
     config.min_word_count
 )
 target_encoder, y_encode = preprocess_target(y)
+
+# TODO: Figure out train/test-size disparacy
 X_train, X_test, y_train, y_test = train_test_split(X, y_encode, test_size=0.2)
 
 # Instantiate a few classification pipelines for comparisons
