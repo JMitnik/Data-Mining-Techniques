@@ -4,14 +4,18 @@ import numpy as np
 import seaborn as sns
 
 
-## categorical variables ##
-def countplot(df, categorical_cols):
-    ## remove single valued categories that went through the preprocessing and unknowns
+def plot_preprocess(df):
     for column in df:
         value_counts = df[column].value_counts()
         to_remove = value_counts[value_counts <= 1].index
         df[column].replace(to_remove, np.nan, inplace=True)
         df[column].replace(-1, np.nan, inplace=True)
+    return df
+
+## categorical variables ##
+def countplot(df, categorical_cols):
+    ## remove single valued categories that went through the preprocessing and unknowns
+    df = plot_preprocess(df)
     fig, ax = plt.subplots(2, 4, figsize=(20, 10))
     for column, subplot in zip(categorical_cols, ax.flatten()):
         sns.countplot(df[column], ax=subplot)
@@ -21,25 +25,52 @@ def countplot(df, categorical_cols):
     return None
 
 def histogram(df, numerical_cols):
-    for column in df:
-        value_counts = df[column].value_counts()
-        to_remove = value_counts[value_counts <= 1].index
-        df[column].replace(to_remove, np.nan, inplace=True)
-        df[column].replace(-1, np.nan, inplace=True)
+    df = plot_preprocess(df)
     df[numerical_cols].hist(bins=10, figsize=(15, 6), layout=(1, 4))
     plt.show()
     return None
 
 def boxplot(df, categorical_cols):
-    for column in df:
-        value_counts = df[column].value_counts()
-        to_remove = value_counts[value_counts <= 1].index
-        df[column].replace(to_remove, np.nan, inplace=True)
-        df[column].replace(-1, np.nan, inplace=True)
-
+    df = plot_preprocess(df)
     fig, ax = plt.subplots(2, 4, figsize=(15, 10))
     for var, subplot in zip(categorical_cols, ax.flatten()):
         sns.boxplot(x=var, y='date_of_birth', data=df, ax=subplot)
+        for label in subplot.get_xticklabels():
+            label.set_rotation(90)
+    plt.show()
+    return None
+
+def heatmap(df):
+    df = plot_preprocess(df)
+    sns.set(style="white")
+    corr = df.corr()
+    mask = np.zeros_like(corr, dtype=bool)
+    mask[np.triu_indices_from(mask)] = True
+    f, ax = plt.subplots(figsize=(11, 9))
+    cmap = sns.diverging_palette(220, 10, as_cmap=True)
+    sns.heatmap(corr, mask=mask, cmap=cmap, vmax=1, center=0, square=True,
+                linewidth=.5, cbar_kws={'shrink': .5})
+    ax.set_title('Multi-Collinearity of Features')
+    plt.show()
+    #plt.savefig('correlation2.png')
+    return None
+
+def heatmap2(df):
+    df = plot_preprocess(df)
+    corr = df.corr()
+    mapobject = sns.heatmap(corr, vmax=.3, center=0,
+                    square=True, linewidths=.5, cbar_kws={"shrink": .5}, annot=True, fmt='.2f', cmap='coolwarm')
+    sns.despine()
+    mapobject.figure.set_size_inches(14, 10)
+
+    plt.show()
+    return None
+
+def stacked_bars(df):
+    df = plot_preprocess(df)
+    fig, ax = plt.subplots(1, 4, figsize=(15, 10))
+    for var, subplot in zip(['did_ml', 'did_stats', 'did_ir', 'did_db'], ax.flatten()):
+        sns.countplot(x="programme", hue=var, palette="pastel", edgecolor=".6", data=df, ax=subplot)
         for label in subplot.get_xticklabels():
             label.set_rotation(90)
     plt.show()
