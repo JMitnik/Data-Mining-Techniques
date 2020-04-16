@@ -188,7 +188,7 @@ def make_encoding_pipeline(
     bow_encoder = CountVectorizer(min_df=text_min_count)
 
     # One-hot-encoder for categorical and boolean features
-    oh_encoder = OneHotEncoder()
+    oh_encoder = OneHotEncoder(handle_unknown='ignore')
 
     # Make feature-engineering transformer
     col_encoders = make_column_transformer(

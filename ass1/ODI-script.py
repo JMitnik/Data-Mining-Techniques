@@ -55,8 +55,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y_encode, test_size=0.2)
 
 # Instantiate a few classification pipelines for comparisons
 algorithms = [
-    SVC(kernel='linear',
-            probability=True),
+    SVC(kernel='linear'),
     DecisionTreeClassifier(),
     RandomForestClassifier(),
 ]
@@ -65,7 +64,6 @@ selection_pipeline = Pipeline([('rfe', RFE(SVC(kernel='linear')))])
 
 # Try each algorithm out
 for algo in algorithms:
-    nr_features = 30
     classification_pipeline = Pipeline([
         ('engineering', encoding_pipeline),
         ('selection', selection_pipeline),
@@ -78,10 +76,16 @@ for algo in algorithms:
         y_train,
         scoring=['accuracy', 'balanced_accuracy']
     )
+
+    # Perform predictions and such
     classification_pipeline.fit(X_train, y_train)
     test_predictions = classification_pipeline.predict(X_test)
+
+    # Measure final metrics on test-set
     test_accuracy = accuracy_score(test_predictions, y_test)
-    test_auc = balanced_accuracy_score(test_predictions, y_test)
+    test_balanced_accuracy = balanced_accuracy_score(test_predictions, y_test)
+
+    # Report
     print(f"For model {type(algo).__name__}, the avg performance for training was {avg_train_accuracy}, and for test {test_accuracy} \n",
           f"\t Predictions were: {test_predictions} \n",
           f"\t Truth is: ${y_test} \n"
