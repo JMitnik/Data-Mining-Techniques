@@ -162,7 +162,7 @@ def transform_ODI_dataset(df):
     return df
 
 
-def make_ODI_preprocess_pipeline(
+def make_encoding_pipeline(
     data,
     text_min_count
 ):
@@ -191,7 +191,7 @@ def make_ODI_preprocess_pipeline(
     oh_encoder = OneHotEncoder()
 
     # Make feature-engineering transformer
-    col_trans = make_column_transformer(
+    col_encoders = make_column_transformer(
         (bow_encoder, 'good_day_text_1'),
         (bow_encoder, 'good_day_text_2'),
         (oh_encoder, [
@@ -201,11 +201,7 @@ def make_ODI_preprocess_pipeline(
         remainder='drop'
     )
 
-    preprocessing_pipeline = Pipeline([
-        ('feature_engineering', col_trans),
-    ])
-
-    return preprocessing_pipeline
+    return col_encoders
 
 
 def prevent_overflow(df):
