@@ -21,7 +21,9 @@ def clean_date_of_birth(df):
         date = re.split("[%s]" % ("".join(seperator)), date)
         for values in date:
             if len(values) == 4 and values.isdigit():
-                df.loc[i, 'date_of_birth'] = np.array(values)
+                values = int(values)
+                if values > 1920 and values < 2004:
+                    df.loc[i, 'date_of_birth'] = values
         i+=1
     return df
 
@@ -40,6 +42,8 @@ def transform_ODI_dataset(df):
     # - Transform deserves_money into numbers, put rest to unknown (-1)
     # - Random_nr (allow only Ints, remove the drop table command)
     # - Stress level
+    # - Combine BoW counts for good_day_text_1/2
+    # - Bedtime :(
 
     # New readable column names
     new_columns = [
@@ -86,9 +90,7 @@ def transform_ODI_dataset(df):
     df['random_nr']=df['random_nr'].str.replace('; DROP ALL TABLES ;','')
     df['random_nr']=df['random_nr'].str.replace(',\d','1',regex=True)
     prevent_overflow(df['random_nr'])
-    print(df['random_nr'].loc[36])
     df['random_nr']=df['random_nr'].astype(np.int64)
-
     # - Transforms deserves_money into numbers, put rest to unknown (-1)
     df['deserves_money']=df['deserves_money'].replace({
         '-':-1,
@@ -122,6 +124,7 @@ def transform_ODI_dataset(df):
         '1/500':0.002,
         '0%  100%':-1
     })
+
     df['deserves_money']=df['deserves_money'].str.replace(',','.')
     df['deserves_money']=df['deserves_money'].str.replace('?','-1')
     df['deserves_money']=df['deserves_money'].str.replace('euros','')
@@ -130,11 +133,9 @@ def transform_ODI_dataset(df):
     df['deserves_money']=df['deserves_money'].str.replace('%','',regex=True)
 
 
-    df['deserves_money']=df['deserves_money'].astype(np.float64)
 
     # Format booleans
     df['did_ml'] = df['did_ml'].replace({ 'no': 0, 'yes': 1, 'unknown': -1 })
-    df['did_ir'] = df['did_ir'].replace({ 'no': 0, 'yes': 1, 'unknown': -1 })
     df['did_stats'] = df['did_stats'].replace({ 'sigma': 0, 'mu': 1, 'unknown': -1 })
     df['did_db'] = df['did_db'].replace({ 'nee': 0, 'ja': 1, 'unknown': -1 })
     df['did_stand'] = df['did_stand'].replace({ 'no': 0, 'yes': 1, 'unknown': -1 })
@@ -179,6 +180,7 @@ def make_encoding_pipeline(
         'gender',
         'did_stand',
         'did_ml',
+        'did_ir',
         'did_db',
         'did_stats'
     ]

@@ -17,6 +17,7 @@ from sklearn.model_selection import cross_val_score, train_test_split, cross_val
 import nltk
 from tempfile import mkdtemp
 from config import Config
+import seaborn as sns
 
 # Script for notebooks to reload dependency
 import importlib
@@ -36,14 +37,26 @@ config = Config(
 df = pd.read_csv("data/ODI-2020.csv", sep=";", encoding="utf-8")
 df = transform_ODI_dataset(df)
 
+
 #%% Part 2 Visualizing cleaned data
-from datavisualization import single_freqtable, histogram
-#single_freqtable(df, 'programme')
-#histogram(df, 'stress_level') #fix stress level first ints from 0-100 in 10 bins?
+categorical_cols = ['programme', 'did_ml', 'did_stats', 'did_db', 'did_ir', 'did_stand', 'gender', 'chocolate'] #todo gd text?
+numerical_cols = ['random_nr', 'stress_level', 'nr_neighbours', 'bedtime_yesterday', 'date_of_birth']   #fixed by cleaning data? date_of_birth here? bedtime?
+
+from datavisualization import countplot, histogram, boxplot
+#countplot(df[categorical_cols], categorical_cols)
+#histogram(df[numerical_cols], numerical_cols)
+
+#possible interesting multivariable scatter and boxplots:
+# date_of_birth with stress_level, nr_neighbours, bedtime_yesterday?
+# programme with courses followed?:
+# date_of_birth with bow
+
+#boxplot(df, categorical_cols)
 
 #%% Part 3 of preprocessing: Make it ready for ML algorithms
 X = df.copy().dropna() # Copy as we will mutate the original dataframe otherwise
 y = X.pop('programme') #Pop removes programme from
+
 
 # Creates a pipeline for the input which will transform our input to ndarrays
 encoding_pipeline = make_encoding_pipeline(

@@ -3,24 +3,44 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
-def single_freqtable(df, columnname):
-    value_counts = df[columnname].value_counts()
-    to_remove = value_counts[value_counts <= 1].index
-    df[columnname].replace(to_remove, np.nan, inplace=True)
-    value_counts = df[columnname].value_counts()
-    plt.figure(figsize=(10, 5))
-    sns.barplot(value_counts.index, value_counts.values, alpha=0.8)
-    plt.title('Frequency of ' + columnname + ' of students following DMT')
-    plt.ylabel('Amount of Students', fontsize=12)
-    plt.xlabel(columnname, fontsize=12)
+
+## categorical variables ##
+def countplot(df, categorical_cols):
+    ## remove single valued categories that went through the preprocessing and unknowns
+    for column in df:
+        value_counts = df[column].value_counts()
+        to_remove = value_counts[value_counts <= 1].index
+        df[column].replace(to_remove, np.nan, inplace=True)
+        df[column].replace(-1, np.nan, inplace=True)
+    fig, ax = plt.subplots(2, 4, figsize=(20, 10))
+    for column, subplot in zip(categorical_cols, ax.flatten()):
+        sns.countplot(df[column], ax=subplot)
+        for label in subplot.get_xticklabels():
+            label.set_rotation(90)
     plt.show()
     return None
 
-def histogram(df, columnname):
-    print (df['stress_level'].value_counts())
-    plt.hist(df[columnname].hist(bins=10)) #make bins variable?
-    plt.xlabel(columnname, fontsize=12)
-    plt.ylabel("Frequency", fontsize=12)
-    plt.xlim([min(df[columnname]), max(df[columnname])])
+def histogram(df, numerical_cols):
+    for column in df:
+        value_counts = df[column].value_counts()
+        to_remove = value_counts[value_counts <= 1].index
+        df[column].replace(to_remove, np.nan, inplace=True)
+        df[column].replace(-1, np.nan, inplace=True)
+    df[numerical_cols].hist(bins=10, figsize=(15, 6), layout=(1, 4))
+    plt.show()
+    return None
+
+def boxplot(df, categorical_cols):
+    for column in df:
+        value_counts = df[column].value_counts()
+        to_remove = value_counts[value_counts <= 1].index
+        df[column].replace(to_remove, np.nan, inplace=True)
+        df[column].replace(-1, np.nan, inplace=True)
+
+    fig, ax = plt.subplots(2, 4, figsize=(15, 10))
+    for var, subplot in zip(categorical_cols, ax.flatten()):
+        sns.boxplot(x=var, y='date_of_birth', data=df, ax=subplot)
+        for label in subplot.get_xticklabels():
+            label.set_rotation(90)
     plt.show()
     return None
