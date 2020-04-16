@@ -46,7 +46,7 @@ X = df.copy().dropna() # Copy as we will mutate the original dataframe otherwise
 y = X.pop('programme') #Pop removes programme from
 
 # Creates a pipeline for the input which will transform our input to ndarrays
-encoding_pipeline_ODI = make_encoding_pipeline(
+encoding_pipeline = make_encoding_pipeline(
     X,
     config.min_word_count
 )
@@ -67,7 +67,7 @@ selection_pipeline = Pipeline([('rfe', RFE(SVC(kernel='linear')))])
 for algo in algorithms:
     nr_features = 30
     classification_pipeline = Pipeline([
-        ('engineering', encoding_pipeline_ODI),
+        ('engineering', encoding_pipeline),
         ('selection', selection_pipeline),
         ('mode', algo)
     ])
