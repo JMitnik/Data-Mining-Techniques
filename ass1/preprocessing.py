@@ -146,7 +146,6 @@ def transform_ODI_dataset(df, programme_threshold=5):
     df['deserves_money']=df['deserves_money'].str.replace('%','',regex=True)
 
 
-
     # Format booleans
     df['did_ml'] = df['did_ml'].replace({ 'no': 0, 'yes': 1, 'unknown': -1 })
     df['did_stats'] = df['did_stats'].replace({ 'sigma': 0, 'mu': 1, 'unknown': -1 })
@@ -166,6 +165,11 @@ def transform_ODI_dataset(df, programme_threshold=5):
     }
 
     df['nr_neighbours'] = df['nr_neighbours'].apply(alias_item, args=(neighbour_alias_map,)).astype('int')
+    
+    #sets limits for numeric results 
+    df['nr_neighbours'] = limit(df['nr_neighbours'],0,10)
+    df['stress_level'] = limit(df['stress_level'],0,100)
+    df['deserves_money'] = limit(df['deserves_money'],0,100)
 
     # Tokenize open text
     # TODO: Stem words, remove stop-words
@@ -259,6 +263,14 @@ def read_selected_features_from_pipeline(classification_pipeline, is_sorted=True
 
     # Sort selected features from bottom (worst) to highest (best)
     return selected_features[sorted_idxs]
+
+def limit(df, min,max):
+    j=-1
+    for i in df:
+        j += 1
+        if i > max or i < min:
+            df.iloc[j] = 50
+    return df
 
 def read_all_features_from_pipeline(classification_pipeline):
     """
