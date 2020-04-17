@@ -94,6 +94,7 @@ def transform_ODI_dataset(df, programme_threshold=5):
     df=encode(df,df.did_ir)
     df=encode(df,df.did_db)
     df=encode(df,df.gender)
+    df=encode(df,df.chocolate)
 
     # - Random_nr (allow only Ints, remove the drop table command)
     df['random_nr']=df['random_nr'].str.replace('four','1')
