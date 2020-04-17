@@ -86,6 +86,14 @@ def transform_ODI_dataset(df, programme_threshold=5):
     if programme_threshold is not None:
         df = df.groupby('programme').filter(lambda x: len(x) > programme_threshold).dropna()
         df['programme'] = df['programme'].astype('category')
+        
+    
+    df=encode(df,df.did_stand)
+    df=encode(df,df.did_stats)
+    df=encode(df,df.did_ml)
+    df=encode(df,df.did_ir)
+    df=encode(df,df.did_db)
+    df=encode(df,df.gender)
 
     # - Random_nr (allow only Ints, remove the drop table command)
     df['random_nr']=df['random_nr'].str.replace('four','1')
@@ -166,7 +174,10 @@ def transform_ODI_dataset(df, programme_threshold=5):
 
     # TODO: Check for empty values / Np.Nans and such
     return df
-
+def encode(df,df2):
+    pe=pd.get_dummies(df2)
+    OHE=pd.concat([df,pe],axis=1)
+    return OHE
 
 def make_encoding_pipeline(
     data,
