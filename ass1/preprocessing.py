@@ -147,12 +147,7 @@ def transform_ODI_dataset(df, programme_threshold=5):
     df['deserves_money']=df['deserves_money'].str.replace('%','',regex=True)
 
 
-    # Format booleans
-    df['did_ml'] = df['did_ml'].replace({ 'no': 0, 'yes': 1, 'unknown': -1 })
-    df['did_stats'] = df['did_stats'].replace({ 'sigma': 0, 'mu': 1, 'unknown': -1 })
-    df['did_db'] = df['did_db'].replace({ 'nee': 0, 'ja': 1, 'unknown': -1 })
-    df['did_stand'] = df['did_stand'].replace({ 'no': 0, 'yes': 1, 'unknown': -1 })
-    df['gender'] = df['gender'].replace({'male':0, 'female':1,'unknown':-1})
+   
 
 
     # Format year of birth
