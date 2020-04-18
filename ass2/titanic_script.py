@@ -15,9 +15,10 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import cross_validate, train_test_split
 import nltk
 import matplotlib.pyplot as plt
-
+from training import train_model
 
 from preprocess import transform_titanic_dataset
+import utils
 
 #%% Part 1, Data Preparation
 training_df = pd.read_csv("data/train.csv", sep=",", encoding="utf-8")
@@ -95,36 +96,11 @@ models = [
 
 results_df = pd.DataFrame()
 
-
-# Now given a df-transformer, some training-data, and a label to predict, we train our models (default parameters)
 for model in models:
-    # We apply cross-validation to check the model's general performance during training
-    cv_performances = cross_validate(model, encoded_X, train_y, scoring=['accuracy', 'recall', 'precision'])
+    trained_model, results = train_model(model, encoded_X, train_y)
+    results_df = results_df.append(results, ignore_index = True)
 
-    avg_accuracy = cv_performances['test_accuracy'].mean()
-    avg_recall = cv_performances['test_recall'].mean()
-    avg_precision = cv_performances['test_precision'].mean()
-
-    # Now we know how good it does in general, let's train it on all the training data
-    model.fit(encoded_X, train_y)
-
-    print(f"Our average cross-validation accuracy for {type(model).__name__} is: \n"
-          f"\t - Score for accuracy is {avg_accuracy}. \n"
-          f"\t - Score for recall is {avg_recall}. \n"
-          f"\t - Score for precision is {avg_precision} \n"
-    )
-
-    results_df = results_df.append({
-        'model_name': type(model).__name__,
-        'cv_accuracy': avg_accuracy,
-        'cv_precision': avg_precision,
-        'cv_recall': avg_recall
-    }, ignore_index=True)
-
-# Store results for training
-path_to_results = 'results/training_results.csv'
-os.makedirs(os.path.dirname(path_to_results), exist_ok=True)
-results_df.to_csv(path_to_results)
+utils.save_results(results_df, 'results/training_results.csv')
 
 # %%
 ###
