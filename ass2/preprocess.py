@@ -37,7 +37,7 @@ def transform_titanic_dataset(df):
     # [2/12] Survived: Target label, will be removed
 
     # [3/12] Class: Becomes categorical
-    df['class'] = df['class'].astype('category')
+    df['class'] = df['class'].replace({ np.NaN: 'unknown' }).astype('category')
 
     # [4/12] Name: string stays string
     # Note: name will be ignored in feature-selection
@@ -64,6 +64,6 @@ def transform_titanic_dataset(df):
     df['cabin_nr'] = df['cabin_nr'].str.split(' ').replace({np.NaN : -1})
 
     # [12/12] Port of departure: categorical variable
-    df['port_of_departure'] = df['port_of_departure'].astype('category')
+    df['port_of_departure'] = df['port_of_departure'].replace({ np.NaN: 'unknown' }).astype('category')
 
     return(df)
