@@ -11,7 +11,7 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.compose import make_column_transformer
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.model_selection import cross_validate, train_test_split
 import nltk
 import matplotlib.pyplot as plt
 
@@ -21,6 +21,8 @@ from preprocess import transform_titanic_dataset
 #%% Part 1, Data Preparation
 training_df = pd.read_csv("data/train.csv", sep=",", encoding="utf-8")
 test_df = pd.read_csv("data/test.csv", sep=",", encoding="utf-8")
+
+train_y = training_df['Survived']
 
 training_df = transform_titanic_dataset(training_df)
 test_df = transform_titanic_dataset(test_df)
@@ -59,6 +61,7 @@ plt.show()
 ###
 ### Feature engineering
 ###
+
 # Let's start with defining the one-hot encoding the categorical variables
 oh_encoder = OneHotEncoder()
 oh_columnns = ['gender', 'class', 'port_of_departure']
@@ -85,9 +88,14 @@ new_oh_columns = df_transformer.named_transformers_.oh.get_feature_names(oh_colu
 encoded_columns = [ *new_oh_columns, *num_scale_columns]
 encoded_df = pd.DataFrame(encoded_X, columns=encoded_columns)
 print(encoded_df.head(5))
+
 # %%
 ###
-### Feature selection
+### Modeling: Train
 ###
 
-pd.DataFrame()
+# Now given a df-transformer, some training-data, and a label to predict, we train a model (default parameters)
+model = DecisionTreeClassifier()
+
+# We apply cross-validation to check the model's general performance during training
+avg_cv_performance = cross_validate(model, encoded_X, train_y)['test_score'].mean()
