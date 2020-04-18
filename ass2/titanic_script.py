@@ -32,6 +32,9 @@ training_df.describe()
 
 
 # %%
+###
+### Visualizations
+###
 import seaborn as sns
 import importlib
 
@@ -50,4 +53,11 @@ grid = sns.PairGrid(interesting_data_df, hue="class").add_legend()
 grid.map_diag(sns.distplot, hist=False, rug=True)
 grid.map_offdiag(sns.scatterplot)
 plt.show()
+# %%
+###
+### Feature engineering and selection
+###
+
+
+
 # %%
