@@ -59,7 +59,7 @@ plt.show()
 ### Feature engineering and selection
 ###
 
-# TODO: Manually define here the columns we choose
+# Manually define here the columns we choose <-@tho, hiermee kunnen we het handmatig aanpassen
 chosen_columns = ['gender', 'age']
 
 train_X = training_df.pop('survived')
@@ -91,12 +91,6 @@ new_oh_columns = df_transformer.named_transformers_.oh.get_feature_names(oh_colu
 encoded_columns = [ *new_oh_columns, *num_scale_columns]
 encoded_df = pd.DataFrame(encoded_X, columns=encoded_columns)
 print(encoded_df.head(5))
-
-#%%
-###
-### Feature selection
-###
-all_column_combinations = utils.all_column_combinations(encoded_df)
 
 # %%
 ###
