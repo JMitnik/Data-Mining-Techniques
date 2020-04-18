@@ -47,7 +47,7 @@ def transform_titanic_dataset(df):
     df['gender'] = df['gender'].astype('category')
 
     # [6/12] Age: replace Nans with -1, make int
-    df['age'] = df['age']
+    df['age'] = df['age'].replace({ np.NaN: -1}).astype(int)
 
     # [7/12] nr_siblings_spouses: int stays int
     # [8/12] nr_parents_children: int stays int
