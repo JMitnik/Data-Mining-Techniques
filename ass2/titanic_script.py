@@ -2,6 +2,7 @@
 # Imports
 import pandas as pd
 from scipy.sparse import find
+import os
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.svm import SVC
@@ -28,12 +29,6 @@ training_df = transform_titanic_dataset(training_df)
 test_df = transform_titanic_dataset(test_df)
 
 print (training_df.info())
-# %%
-# Use describe to get some generic statistics
-test_df.info()
-
-
-
 # %%
 ###
 ### Visualizations
@@ -93,15 +88,43 @@ print(encoded_df.head(5))
 ###
 ### Modeling: Train
 ###
+models = [
+    DecisionTreeClassifier(),
+    RandomForestClassifier()
+]
 
-# Now given a df-transformer, some training-data, and a label to predict, we train a model (default parameters)
-model = DecisionTreeClassifier()
+results_df = pd.DataFrame()
 
-# We apply cross-validation to check the model's general performance during training
-avg_cv_performance = cross_validate(model, encoded_X, train_y)['test_score'].mean()
 
-# Now we know how good it does in general, let's train it on all the training data
-model.fit(encoded_X, train_y)
+# Now given a df-transformer, some training-data, and a label to predict, we train our models (default parameters)
+for model in models:
+    # We apply cross-validation to check the model's general performance during training
+    cv_performances = cross_validate(model, encoded_X, train_y, scoring=['accuracy', 'recall', 'precision'])
+
+    avg_accuracy = cv_performances['test_accuracy'].mean()
+    avg_recall = cv_performances['test_recall'].mean()
+    avg_precision = cv_performances['test_precision'].mean()
+
+    # Now we know how good it does in general, let's train it on all the training data
+    model.fit(encoded_X, train_y)
+
+    print(f"Our average cross-validation accuracy for {type(model).__name__} is: \n"
+          f"\t - Score for accuracy is {avg_accuracy}. \n"
+          f"\t - Score for recall is {avg_recall}. \n"
+          f"\t - Score for precision is {avg_precision} \n"
+    )
+
+    results_df = results_df.append({
+        'model_name': type(model).__name__,
+        'cv_accuracy': avg_accuracy,
+        'cv_precision': avg_precision,
+        'cv_recall': avg_recall
+    }, ignore_index=True)
+
+# Store results for training
+path_to_results = 'results/training_results.csv'
+os.makedirs(os.path.dirname(path_to_results), exist_ok=True)
+results_df.to_csv(path_to_results)
 
 # %%
 ###
