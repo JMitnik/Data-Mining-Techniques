@@ -49,15 +49,11 @@ from datavisualization import countplot, histogram, boxplot, heatmap, heatmap2, 
 
 
 ### correlation between multivariable plots are here
-#possible interesting multivariable scatter and boxplots:
-# date_of_birth with stress_level, nr_neighbours, bedtime_yesterday?
-# programme with courses followed?:
-# date_of_birth with bow
 
 #boxplot(df, categorical_cols)
-heatmap2(df)
+#heatmap2(df)
 stacked_bars(df)
-
+#
 #%% Part 3 of preprocessing: Make it ready for ML algorithms
 X = df.copy().dropna() # Copy as we will mutate the original dataframe otherwise
 y = X.pop('programme') #Pop removes programme from

@@ -10,7 +10,6 @@ boston = pd.read_csv("data/housing.csv", sep=",", encoding="utf-8")
 boston['MEDV'] = boston['MEDV']/1000
 
 # correlation_matrix = boston.corr().round(2)
-# # annot = True to print the values inside the square
 # sns.heatmap(data=correlation_matrix, vmax=.3, center=0,
 #                     square=True, linewidths=.5, cbar_kws={"shrink": .5}, annot=True, fmt='.2f', cmap='coolwarm')
 # plt.show()

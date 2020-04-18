@@ -15,9 +15,11 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import cross_validate, train_test_split
 import nltk
 import matplotlib.pyplot as plt
+
 from training import train_model
 
 from preprocess import transform_titanic_dataset
+from datavis import heatmap, countplots, distplots
 import utils
 
 #%% Part 1, Data Preparation
@@ -29,6 +31,11 @@ train_y = training_df['Survived']
 training_df = transform_titanic_dataset(training_df)
 test_df = transform_titanic_dataset(test_df)
 
+# %%
+# Use describe to get some generic statistics
+training_df.describe()
+
+
 print (training_df.info())
 
 # %%
@@ -37,6 +44,9 @@ print (training_df.info())
 ###
 import seaborn as sns
 import importlib
+# distplots(training_df, ['passenger_fare', 'age', 'nr_siblings_spouses', 'nr_parents_children'])
+
+
 
 # Let's select some interesting data we might want to visualize in a grid
 interesting_data_df = training_df[[
@@ -49,10 +59,13 @@ interesting_data_df = training_df[[
     'passenger_fare',
     'nr_parents_children'
 ]]
-grid = sns.PairGrid(interesting_data_df, hue="class").add_legend()
-grid.map_diag(sns.distplot, hist=False, rug=True)
-grid.map_offdiag(sns.scatterplot)
-plt.show()
+# grid = sns.PairGrid(interesting_data_df, hue="class").add_legend()
+# # grid.map_diag(sns.distplot, hist=False, rug=True)
+# # grid.map_offdiag(sns.scatterplot)
+# # plt.show()
+# heatmap(interesting_data_df)
+high_corr_col = ['class', 'gender', 'passenger_fare']
+countplots(interesting_data_df, high_corr_col)
 
 # %%
 ###

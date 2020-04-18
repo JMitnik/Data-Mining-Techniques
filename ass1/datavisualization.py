@@ -10,6 +10,8 @@ def plot_preprocess(df):
         to_remove = value_counts[value_counts <= 1].index
         df[column].replace(to_remove, np.nan, inplace=True)
         df[column].replace(-1, np.nan, inplace=True)
+        df[column].replace('unknown', np.nan, inplace=True)
+
     return df
 
 ## categorical variables ##
@@ -75,3 +77,7 @@ def stacked_bars(df):
             label.set_rotation(90)
     plt.show()
     return None
+
+def bars(df):
+    df = plot_preprocess(df)
+    columns = ['did_ml', 'did_stats', 'did_ir', 'did_db']
