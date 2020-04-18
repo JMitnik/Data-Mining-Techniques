@@ -135,6 +135,10 @@ utils.save_results(results_df, 'results/training_results.csv')
 test_X = df_transformer.transform(test_df)
 
 # Then we predict
-model.predict(test_X)
+predictions = model.predict(test_X)
+
+kaggle_result_df = pd.DataFrame(columns=['Survived'], index=test_df.ID)
+kaggle_result_df.Survived = predictions
+utils.save_results(kaggle_result_df, 'results/kaggle_result_df.csv')
 
 # %%
