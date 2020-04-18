@@ -57,6 +57,7 @@ def transform_titanic_dataset(df):
     # TODO: What can we do here?
 
     # [10/12] passenger_fare: float stays float
+    df['passenger_fare'] = df['passenger_fare'].replace({ np.NaN: -1 })
     # Note: kept for now, maybe high correlation with other features, we dont need multiple features saying the same thing
     # TODO: Maybe clean this up a bit?
 

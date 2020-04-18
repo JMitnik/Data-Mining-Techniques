@@ -30,7 +30,7 @@ test_df = transform_titanic_dataset(test_df)
 print (training_df.info())
 # %%
 # Use describe to get some generic statistics
-training_df.describe()
+test_df.info()
 
 
 
@@ -61,7 +61,7 @@ plt.show()
 ###
 ### Feature engineering
 ###
-
+train_X = training_df.pop('survived')
 # Let's start with defining the one-hot encoding the categorical variables
 oh_encoder = OneHotEncoder()
 oh_columnns = ['gender', 'class', 'port_of_departure']
@@ -99,3 +99,21 @@ model = DecisionTreeClassifier()
 
 # We apply cross-validation to check the model's general performance during training
 avg_cv_performance = cross_validate(model, encoded_X, train_y)['test_score'].mean()
+
+# Now we know how good it does in general, let's train it on all the training data
+model.fit(encoded_X, train_y)
+
+# %%
+###
+### Modeling: Predict
+###
+
+# With our trained model, let's predict the rest
+
+# First we apply the same transformation on our test-data
+test_X = df_transformer.transform(test_df)
+
+# Then we predict
+model.predict(test_X)
+
+# %%
