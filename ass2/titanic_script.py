@@ -30,6 +30,7 @@ training_df = transform_titanic_dataset(training_df)
 test_df = transform_titanic_dataset(test_df)
 
 print (training_df.info())
+
 # %%
 ###
 ### Visualizations
@@ -58,6 +59,7 @@ plt.show()
 ### Feature engineering
 ###
 train_X = training_df.pop('survived')
+
 # Let's start with defining the one-hot encoding the categorical variables
 oh_encoder = OneHotEncoder()
 oh_columnns = ['gender', 'class', 'port_of_departure']
