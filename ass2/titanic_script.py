@@ -56,8 +56,12 @@ plt.show()
 
 # %%
 ###
-### Feature engineering
+### Feature engineering and selection
 ###
+
+# TODO: Manually define here the columns we choose
+chosen_columns = ['gender', 'age']
+
 train_X = training_df.pop('survived')
 
 # Let's start with defining the one-hot encoding the categorical variables
@@ -66,13 +70,14 @@ oh_columnns = ['gender', 'class', 'port_of_departure']
 
 # We define numerial operations by a scaling process, where we remove mean and scale to unit variance
 # -> Better performance
-# TODO: Check if these features look normally distributed, maybe in plots, and remove the ones not
 num_scale_encoder = StandardScaler()
 num_scale_columns = ['age', 'nr_siblings_spouses', 'nr_parents_children', 'passenger_fare']
 
 # We ignore for the moment `id`, `name`, `cabin_nr`, `ticket_nr`
 
 # We define a transformer which can apply these encoders to their respective columns, ignoring the rest
+
+# TODO: for both `oh_columns` and `num_scale_columns`, check if the features are in 'chosen_columns'
 df_transformer = ColumnTransformer([
     ('oh', oh_encoder, oh_columnns),
     ('num', num_scale_encoder, num_scale_columns),
@@ -86,6 +91,12 @@ new_oh_columns = df_transformer.named_transformers_.oh.get_feature_names(oh_colu
 encoded_columns = [ *new_oh_columns, *num_scale_columns]
 encoded_df = pd.DataFrame(encoded_X, columns=encoded_columns)
 print(encoded_df.head(5))
+
+#%%
+###
+### Feature selection
+###
+all_column_combinations = utils.all_column_combinations(encoded_df)
 
 # %%
 ###
