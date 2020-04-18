@@ -61,7 +61,7 @@ interesting_data_df = training_df[[
 # # grid.map_diag(sns.distplot, hist=False, rug=True)
 # # grid.map_offdiag(sns.scatterplot)
 # # plt.show()
-# heatmap(interesting_data_df)
+heatmap(interesting_data_df)
 # high_corr_col = ['class', 'gender', 'passenger_fare']
 # countplots(interesting_data_df, high_corr_col)
 

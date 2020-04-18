@@ -7,7 +7,7 @@ def heatmap(df):
 
     df.port_of_departure.replace(('S', 'C', 'Q'), (0, 1, 2), inplace=True)
     df.gender.replace(('male', 'female'), (0, 1), inplace=True)
-    df['class'] = df['class'].astype(int)
+    df['class'].replace((1, 2, 3), (0, 1, 2), inplace=True )
     correlation_matrix = df.corr()
     sns.heatmap(data=correlation_matrix, vmax=.3, center=0,
                 square=True, linewidths=.5, cbar_kws={"shrink": .5}, annot=True, fmt='.2f', cmap='coolwarm')
