@@ -31,8 +31,8 @@ y = labeler.fit_transform(df['label'])
 # %%
 import re
 # Possible transformations: count | tf-idf
-transformation = 'count'
-map_integers = False
+transformation = 'tf-idf'
+map_integers = True
 df_x = df['text']
 df_x = df_x.fillna('UNKNOWN')
 tfidf_encoder = TfidfVectorizer()
@@ -55,7 +55,7 @@ def map_str_to_NUMBER_token(row):
     for word in nltk.tokenize.word_tokenize(row):
         if word.isdigit():
             result.append('NUMB')
-        if any_curr(word):
+        elif any_curr(word):
             result.append('MONEY')
         else:
             result.append(word)
@@ -100,8 +100,7 @@ export_graphviz(
 
 # %%
 # Try: Putting all numerical features into 1 column: numerical
-encoder.get_feature_names()
-
+print(f"Nr Feature names now are {len(encoder.get_feature_names())}")
 # %%
 # Could get all monetary values as well
 # Could count
