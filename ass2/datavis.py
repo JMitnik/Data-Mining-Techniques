@@ -3,6 +3,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
+def countplot(df):
+    ## remove single valued categories that went through the preprocessing and unknowns
+    fig, ax = plt.subplots(1, 3, figsize=(20, 10))
+    for column, subplot in zip(['gender', 'class', 'port_of_departure'], ax.flatten()):
+        sns.countplot(df[column], ax=subplot)
+        for label in subplot.get_xticklabels():
+            label.set_rotation(90)
+    plt.suptitle('Overview of categorical columns of the Titanic dataset')
+    plt.show()
+    return None
+
 def heatmap(df):
 
     df.port_of_departure.replace(('S', 'C', 'Q'), (0, 1, 2), inplace=True)
@@ -37,8 +48,8 @@ def distplots(df, cols):
     fig, ax = plt.subplots(1, 4, figsize=(20, 10))
     for column, subplot in zip(cols, ax.flatten()):
         sns.distplot(df[column], ax=subplot, bins=20, color='red')
-    plt.title(
-        'hehe))')
+    plt.suptitle(
+        'Overview of numerical columns of the Titanic dataset')
     plt.show()
     return None
 
