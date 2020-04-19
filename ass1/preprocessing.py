@@ -289,5 +289,8 @@ def read_all_features_from_pipeline(classification_pipeline):
     Arguments:
         classification_pipeline
     """
+    oh_feature = [trans[1].get_feature_names() for trans in classification_pipeline.named_steps.engineering.transformers_ if trans[0] != 'minmaxscaler' and type(trans[1]) is not str]
+    features = [item for sub_list in oh_feature for item in sub_list]
+    features.extend(['nr_neighbours', 'stress_level', 'deserves_money', 'random_nr'])
 
-    return classification_pipeline.named_steps.engineering.get_feature_names()
+    return features
