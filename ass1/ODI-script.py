@@ -23,7 +23,7 @@ from config import Config
 import importlib
 import preprocessing
 importlib.reload(preprocessing)
-from preprocessing import transform_ODI_dataset, read_all_features_from_pipeline, make_encoding_pipeline, preprocess_target, read_selected_features_from_pipeline, other_cat
+from preprocessing import transform_ODI_dataset, read_all_features_from_pipeline, make_encoding_pipeline, preprocess_target, read_selected_features_from_pipeline
 
 # Configgg
 config = Config(
@@ -39,7 +39,6 @@ df = transform_ODI_dataset(df, programme_threshold=5)
 
 #%% Part 2 Visualizing cleaned data
 categorical_cols = ['programme', 'did_ml', 'did_stats', 'did_db', 'did_ir', 'did_stand', 'gender'] #todo gd text?
-df = other_cat(df, categorical_cols)
 numerical_cols = ['random_nr', 'stress_level', 'nr_neighbours', 'bedtime_yesterday', 'date_of_birth']   #fixed by cleaning data? date_of_birth here? bedtime?
 
 from datavisualization import countplot, histogram, boxplot, heatmap, heatmap2, stacked_bars
@@ -111,7 +110,7 @@ for algo in algorithms:
     fold_scores = cross_validate(classification_pipeline,
         X_train,
         y_train,
-        scoring=['accuracy', 'balanced_accuracy']
+        scoring=['accuracy', 'balanced_accuracy'],
     )
 
     # Perform predictions and such

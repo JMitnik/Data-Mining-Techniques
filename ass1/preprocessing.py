@@ -7,7 +7,7 @@ from sklearn.compose import make_column_transformer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.utils import safe_sqr
-from sklearn.preprocessing import OneHotEncoder, LabelEncoder
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder, MinMaxScaler
 import nltk
 import numpy as np
 from utils import alias_item
@@ -34,16 +34,8 @@ def remove_non_numerics(df):
         df[cols] = pd.to_numeric(df[cols].astype(str).str.replace(',',''), errors='coerce').fillna(-1).astype(int)
     return df
 
-def other_cat(df, columns):
-    for col in columns:
-        values = df[col].value_counts()
-        other_values = df[col].isin(values.index[values < 5])
-        df[col] = df[col].cat.add_categories('other')
-        df.loc[other_values, col] = 'other'
-    return df
 
-
-def transform_ODI_dataset(df, programme_threshold=5):
+def transform_ODI_dataset(df, programme_threshold=15):
     """
     Transforms existing dataframe by renaming columns, change their code, and imputes missing values.
 
@@ -99,10 +91,10 @@ def transform_ODI_dataset(df, programme_threshold=5):
     df['programme'] = df['programme'].apply(alias_item, args=(programme_alias_map,))
 
     if programme_threshold is not None:
-        df.groupby('programme').filter(lambda x: len(x) > programme_threshold)
+        programme_frequency = df['programme'].value_counts()
+        df['programme'] = df['programme'].map(lambda x: x if programme_frequency[x] > programme_threshold else 'other')
 
         df['programme'] = df['programme'].astype('category')
-
 
     # Format booleans
     df['did_ml'] = df['did_ml'].replace({'no': 0, 'yes': 1, 'unknown': -1}).astype('category')
@@ -110,7 +102,9 @@ def transform_ODI_dataset(df, programme_threshold=5):
     df['did_db'] = df['did_db'].replace({'nee': 0, 'ja': 1, 'unknown': -1}).astype('category')
     df['did_stand'] = df['did_stand'].replace({'no': 0, 'yes': 1, 'unknown': -1}).astype('category')
     df['gender'] = df['gender'].replace({'male': 0, 'female': 1, 'unknown': -1}).astype('category')
-    df['did_ir'] = df['did_ir'].replace({0: 0, 1 : 1, 'unknown': -1}).astype('category')
+    df['did_ir'] = df['did_ir'].replace({0: 0, 1 : 1, 'unknown': -1}).astype('category').cat.codes
+
+    df['chocolate'] = df['chocolate'].astype('category').cat.codes
 
     # - Random_nr (allow only Ints, remove the drop table command)
     df['random_nr']=df['random_nr'].str.replace('four','1')
@@ -162,9 +156,6 @@ def transform_ODI_dataset(df, programme_threshold=5):
     df['deserves_money']=df['deserves_money'].str.replace('\u20AC','',regex=True)
     df['deserves_money']=df['deserves_money'].str.replace('%','',regex=True)
 
-   
-
-
     # Format year of birth
     df = clean_date_of_birth(df)
 
@@ -176,7 +167,7 @@ def transform_ODI_dataset(df, programme_threshold=5):
     }
 
     df['nr_neighbours'] = df['nr_neighbours'].apply(alias_item, args=(neighbour_alias_map,)).astype('int')
-    
+
     #sets limits for numeric results
     df = remove_non_numerics(df)
     df['nr_neighbours'] = limit(df['nr_neighbours'],-1,10)
@@ -205,13 +196,15 @@ def make_encoding_pipeline(
     """
     # Check which one-hot columns are used as predictors
     default_oh_columns = [
-        'programme',
-        'gender',
-        'did_stand',
         'did_ml',
-        'did_ir',
-        'did_db',
-        'did_stats'
+        'did_ir',           #categorical value; Yes, No, Unknown
+        'did_stats',        ##categorical value; Yes, No, Unknown
+        'did_db',           #categorical value; Yes, No, Unknown
+        'gender',           #categorical value; Male, Female, Unknown
+        'chocolate',        #categorical value; Slim, Fat, Neither, No Idea, Unknown
+        'did_stand',        #categorical value; Yes, No, Unknown
+        'good_day_text_1',  #categorical value;
+        'good_day_text_2'   #categorical value;
     ]
     present_oh_columns = [column for column in default_oh_columns if column in data.columns]
 
@@ -221,14 +214,22 @@ def make_encoding_pipeline(
     # One-hot-encoder for categorical and boolean features
     oh_encoder = OneHotEncoder(handle_unknown='ignore')
 
+    default_num_columns = [
+        'nr_neighbours',    #numerical value; 0-10
+        'stress_level',     #numerical value; 0-100
+        'deserves_money',   #numerical value; 0-100
+        'random_nr',        #numerical value; just a random int
+    ]
+    num_encoder = MinMaxScaler()
+
     # Make feature-engineering transformer
     col_encoders = make_column_transformer(
         (bow_encoder, 'good_day_text_1'),
         (bow_encoder, 'good_day_text_2'),
         (oh_encoder, [
             *present_oh_columns
-            # 'did_ir', # TODO: Something weird with did_ir going on
         ]),
+        (num_encoder, [*default_num_columns]),
         remainder='drop'
     )
 
