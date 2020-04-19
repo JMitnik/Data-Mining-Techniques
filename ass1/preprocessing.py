@@ -26,7 +26,22 @@ def clean_date_of_birth(df):
                 if values > 1920 and values < 2004:
                     df.loc[i, 'date_of_birth'] = values
         i+=1
-    return df.dropna()
+    df['date_of_birth'] = df['date_of_birth'].astype(int)
+    return df
+
+def remove_non_numerics(df):
+    for cols in ['stress_level', 'deserves_money', 'random_nr']:
+        df[cols] = pd.to_numeric(df[cols].astype(str).str.replace(',',''), errors='coerce').fillna(-1).astype(int)
+    return df
+
+def other_cat(df, columns):
+    for col in columns:
+        values = df[col].value_counts()
+        other_values = df[col].isin(values.index[values < 5])
+        df[col] = df[col].cat.add_categories('other')
+        df.loc[other_values, col] = 'other'
+    return df
+
 
 def transform_ODI_dataset(df, programme_threshold=5):
     """
@@ -84,17 +99,18 @@ def transform_ODI_dataset(df, programme_threshold=5):
     df['programme'] = df['programme'].apply(alias_item, args=(programme_alias_map,))
 
     if programme_threshold is not None:
-        df = df.groupby('programme').filter(lambda x: len(x) > programme_threshold).dropna()
+        df.groupby('programme').filter(lambda x: len(x) > programme_threshold)
+
         df['programme'] = df['programme'].astype('category')
-        
-    
-    df=encode(df,df.did_stand)
-    df=encode(df,df.did_stats)
-    df=encode(df,df.did_ml)
-    df=encode(df,df.did_ir)
-    df=encode(df,df.did_db)
-    df=encode(df,df.gender)
-    df=encode(df,df.chocolate)
+
+
+    # Format booleans
+    df['did_ml'] = df['did_ml'].replace({'no': 0, 'yes': 1, 'unknown': -1}).astype('category')
+    df['did_stats'] = df['did_stats'].replace({'sigma': 0, 'mu': 1, 'unknown': -1}).astype('category')
+    df['did_db'] = df['did_db'].replace({'nee': 0, 'ja': 1, 'unknown': -1}).astype('category')
+    df['did_stand'] = df['did_stand'].replace({'no': 0, 'yes': 1, 'unknown': -1}).astype('category')
+    df['gender'] = df['gender'].replace({'male': 0, 'female': 1, 'unknown': -1}).astype('category')
+    df['did_ir'] = df['did_ir'].replace({0: 0, 1 : 1, 'unknown': -1}).astype('category')
 
     # - Random_nr (allow only Ints, remove the drop table command)
     df['random_nr']=df['random_nr'].str.replace('four','1')
@@ -104,7 +120,7 @@ def transform_ODI_dataset(df, programme_threshold=5):
     df['random_nr']=df['random_nr'].str.replace('; DROP ALL TABLES ;','')
     df['random_nr']=df['random_nr'].str.replace(',\d','1',regex=True)
     prevent_overflow(df['random_nr'])
-    df['random_nr']=df['random_nr'].astype(np.int64)
+    df['random_nr']=df['random_nr'] #int here?
     # - Transforms deserves_money into numbers, put rest to unknown (-1)
     df['deserves_money']=df['deserves_money'].replace({
         '-':-1,
@@ -146,7 +162,6 @@ def transform_ODI_dataset(df, programme_threshold=5):
     df['deserves_money']=df['deserves_money'].str.replace('\u20AC','',regex=True)
     df['deserves_money']=df['deserves_money'].str.replace('%','',regex=True)
 
-
    
 
 
@@ -162,10 +177,12 @@ def transform_ODI_dataset(df, programme_threshold=5):
 
     df['nr_neighbours'] = df['nr_neighbours'].apply(alias_item, args=(neighbour_alias_map,)).astype('int')
     
-    #sets limits for numeric results 
-    df['nr_neighbours'] = limit(df['nr_neighbours'],0,10)
-    df['stress_level'] = limit(df['stress_level'],0,100)
-    df['deserves_money'] = limit(df['deserves_money'],0,100)
+    #sets limits for numeric results
+    df = remove_non_numerics(df)
+    df['nr_neighbours'] = limit(df['nr_neighbours'],-1,10)
+    df['stress_level'] = limit(df['stress_level'],-1,100)
+    df['random_nr'] = limit(df['random_nr'], -1, 100)
+    df['deserves_money'] = limit(df['deserves_money'],-1,100)
 
     # Tokenize open text
     # TODO: Stem words, remove stop-words
@@ -174,10 +191,6 @@ def transform_ODI_dataset(df, programme_threshold=5):
 
     # TODO: Check for empty values / Np.Nans and such
     return df
-def encode(df,df2):
-    pe=pd.get_dummies(df2)
-    OHE=pd.concat([df,pe],axis=1)
-    return OHE
 
 def make_encoding_pipeline(
     data,

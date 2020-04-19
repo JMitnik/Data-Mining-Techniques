@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 from training import train_model
 
 from preprocess import transform_titanic_dataset
-from datavis import heatmap, countplots, distplots
+from datavis import heatmap, countplots, distplots, countplot
 import utils
 
 #%% Part 1, Data Preparation
@@ -42,9 +42,9 @@ test_df = transform_titanic_dataset(test_df)
 ###
 import seaborn as sns
 import importlib
-# distplots(training_df, ['passenger_fare', 'age', 'nr_siblings_spouses', 'nr_parents_children'])
+#distplots(training_df, ['passenger_fare', 'age', 'nr_siblings_spouses', 'nr_parents_children'])
 
-
+#countplot(training_df)
 
 # Let's select some interesting data we might want to visualize in a grid
 interesting_data_df = training_df[[
@@ -61,7 +61,7 @@ interesting_data_df = training_df[[
 # # grid.map_diag(sns.distplot, hist=False, rug=True)
 # # grid.map_offdiag(sns.scatterplot)
 # # plt.show()
-heatmap(interesting_data_df)
+#heatmap(interesting_data_df)
 # high_corr_col = ['class', 'gender', 'passenger_fare']
 # countplots(interesting_data_df, high_corr_col)
 

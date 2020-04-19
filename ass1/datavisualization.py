@@ -9,9 +9,8 @@ def plot_preprocess(df):
         value_counts = df[column].value_counts()
         to_remove = value_counts[value_counts <= 1].index
         df[column].replace(to_remove, np.nan, inplace=True)
-        df[column].replace(-1, np.nan, inplace=True)
-        df[column].replace('unknown', np.nan, inplace=True)
-
+        df[column].replace(-1, np.NaN, inplace=True)
+        df[column].replace('unknown', 'other', inplace=True)
     return df
 
 ## categorical variables ##
@@ -57,14 +56,20 @@ def heatmap(df):
     #plt.savefig('correlation2.png')
     return None
 
+# ['programme', 'did_ml', 'did_stats', 'did_db', 'did_ir', 'did_stand', 'gender']
 def heatmap2(df):
-    df = plot_preprocess(df)
-    corr = df.corr()
-    mapobject = sns.heatmap(corr, vmax=.3, center=0,
-                    square=True, linewidths=.5, cbar_kws={"shrink": .5}, annot=True, fmt='.2f', cmap='coolwarm')
-    sns.despine()
-    mapobject.figure.set_size_inches(14, 10)
-
+    df.programme.replace(('cs', 'ai', 'other', 'computational_sci', 'qrm', 'ba', 'dbi'), (0, 1, 2, 3, 4, 5, 6), inplace=True)
+    df.did_ml.replace((-1, 0, 1, 'other'), (0, 1, 2, 3), inplace=True)
+    df.did_stats.replace((-1, 0, 1, 'other'), (0, 1, 2, 3), inplace=True)
+    df.did_db.replace((-1, 0, 1, 'other'), (0, 1, 2, 3), inplace=True)
+    df.did_ir.replace((-1, 0, 1, 'other'), (0, 1, 2, 3), inplace=True)
+    df.did_stand.replace((-1, 0, 1, 'other'), (0, 1, 2, 3), inplace=True)
+    df.gender.replace((-1, 0, 1, 'other'), (0, 1, 2, 3), inplace=True)
+    print (df.info())
+    correlation_matrix = df.corr()
+    print (correlation_matrix)
+    sns.heatmap(data=correlation_matrix, vmax=.3, center=0,
+                square=True, linewidths=.5, cbar_kws={"shrink": .5}, annot=True, fmt='.2f', cmap='coolwarm')
     plt.show()
     return None
 
@@ -77,7 +82,3 @@ def stacked_bars(df):
             label.set_rotation(90)
     plt.show()
     return None
-
-def bars(df):
-    df = plot_preprocess(df)
-    columns = ['did_ml', 'did_stats', 'did_ir', 'did_db']
