@@ -1,3 +1,15 @@
+# Imports
+import sklearn as sk
+import pandas as pd
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder,StandardScaler
+
+train_data = pd.read_csv('data/training_set_VU_DM.csv',nrows=1000)
+original_columns = train_data.columns
+
+train_data['prop_id']=train_data['prop_id'].astype('category')
+train_data['prop_starrating']=train_data['prop_starrating'].astype('category')
 
 
 #Onehot encode the categorical variables
