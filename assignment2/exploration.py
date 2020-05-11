@@ -19,15 +19,15 @@ from sklearn.svm import LinearSVC, SVC
 
 
 from config import Config
-pre_feature_selection=True
-# # Config Settings
-# config = Config(
-#     pre_feature_selection=True,
-#     model = SVC(), 
-#     feature_selection=SelectFromModel
-# )
-#     #SelectKBest, RFE  
-#     #train_data_subset = placeholder 
+# Config Settings
+config = Config(
+    pre_feature_selection=True,
+    train_data_subset=0.8,
+    #classifier=SVC(),
+    #feature_selection=SelectFromModel(lsvc, prefit=True),
+    feature_selection_dict={'threshold' : 2, 'max_features' : 2}
+
+)
 
 
 # In[3]:
@@ -175,7 +175,7 @@ num_scale_columns = ['visitor_hist_starrating', 'visitor_hist_adr_usd', 'prop_st
                     ]
 
 #we do a preselection of columns that we feel will become useful features after encoding
-if pre_feature_selection == True:
+if config.pre_feature_selection == True:
     chosen_columns = ['prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2', 
                       'prop_log_historical_price', 'price_usd', 'srch_query_affinity_score',  'promotion_flag']
 else:
@@ -204,7 +204,7 @@ print (encoded_df.shape)
 
 prediction_target = train_data.pop('booking_bool')
 lsvc = LinearSVC(C=0.01, penalty="l1", dual=False).fit(encoded_df, prediction_target)
-model = SelectFromModel(lsvc, prefit=True)
+model = SelectFromModel(lsvc, config.feature_selection_dict, prefit=True)
 encoded_df_new = model.transform(encoded_df)
 print (encoded_df_new.shape)  
 
@@ -212,13 +212,7 @@ print (encoded_df_new.shape)
 # In[ ]:
 
 
-
-
-
-# In[ ]:
-
-
-
+print ('hey')
 
 
 # In[ ]:
