@@ -201,12 +201,27 @@ print (encoded_df.shape)
 
 # In[ ]:
 
+ 
+X = encoded_df.copy()
+y = X.pop('booking_bool') 
 
-prediction_target = train_data.pop('booking_bool')
-lsvc = LinearSVC(C=0.01, penalty="l1", dual=False).fit(encoded_df, prediction_target)
-model = SelectFromModel(lsvc, config.feature_selection_dict, prefit=True)
-encoded_df_new = model.transform(encoded_df)
-print (encoded_df_new.shape)  
+X_train, X_test, y_train, y_test = train_test_split(X, 
+                                                    y, 
+                                                    test_size=0.2, 
+                                                    random_state=1)
+X_train, X_val, y_train, y_val = train_test_split(X_train,
+                                                  y_train, 
+                                                  test_size=0.2, 
+                                                  random_state=1)
+query_train = [X_train.shape[0]]
+query_val = [X_val.shape[0]]
+query_test = [X_test.shape[0]]
+
+gbm.fit(X_train, y_train, group=query_train,
+        eval_set=[(X_val, y_val)], eval_group=[query_val],
+        eval_at=[5, 10, 20], early_stopping_rounds=50)
+
+
 
 
 # In[ ]:
