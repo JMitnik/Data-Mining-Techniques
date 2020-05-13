@@ -219,7 +219,7 @@ print (encoded_df.shape)
 # # Initial model feature selection
 
 # %%
-X = train_data.copy()
+X = encoded_df.copy()
 y = X.pop('booking_bool')
 classifier = config.classifier(**config.classifier_dict).fit(encoded_df, y)
 encoded_feature_df = config.feature_selection(classifier, **config.feature_selection_dict).fit_transform(encoded_df, y)
