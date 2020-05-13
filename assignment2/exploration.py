@@ -177,25 +177,45 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 # %%
+import numpy as np
+# Here we definehow we would like to encode
+
+# For One-Hot Encoding
 # Onehot encode the categorical variables
-oh_encoder = OneHotEncoder()
-oh_columns = ['site_id', 'visitor_location_country_id', 'prop_country_id', 'prop_id', 'prop_brand_bool', 'promotion_flag', 
+oh_columns = ['site_id', 'visitor_location_country_id', 'prop_country_id', 
+              'prop_id', 'prop_brand_bool', 'promotion_flag', 
               'srch_destination_id', 'srch_saturday_night_bool', 'random_bool', 'click_bool'
              ]
-
+oh_impute = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=-2)
+oh_encoder = OneHotEncoder(handle_unknown='ignore')
+oh_pipeline = Pipeline([
+    ('impute', oh_impute),
+    ('encode', oh_encoder)
+])
 # TODO: competitor columns
 for column in oh_columns:
     train_data[column]=train_data[column].astype('category')
 
 
 # Encode the numerical values
-num_scale_encoder = StandardScaler()
-num_scale_columns = ['visitor_hist_starrating', 'visitor_hist_adr_usd', 'prop_starrating', 'prop_review_score', 
-                     'prop_location_score1', 'prop_location_score2', 'prop_log_historical_price', 'price_usd', 
-                     'srch_length_of_stay', 'srch_booking_window', 'srch_adults_count', 'srch_children_count',
-                     'srch_room_count', 'srch_query_affinity_score', 'orig_destination_distance' 
+num_scale_columns = ['visitor_hist_starrating', 'visitor_hist_adr_usd', 
+                     'prop_starrating', 'prop_review_score', 
+                     'prop_location_score1', 'prop_location_score2', 
+                     'prop_log_historical_price', 'price_usd', 
+                     'srch_length_of_stay', 'srch_booking_window', 
+                     'srch_adults_count', 'srch_children_count',
+                     'srch_room_count', 'srch_query_affinity_score', 
+                     'orig_destination_distance' 
                     ]
+num_impute = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=-1)
+num_scale_encoder = StandardScaler()
+num_pipeline = Pipeline([
+    ('impute', num_impute),
+    ('encode', num_scale_encoder)
+])
 
+# %%
+# Manual feature-selection
 # We do a preselection of columns that we feel will become useful features after encoding
 if config.pre_feature_selection == True:
     chosen_columns = ['prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2', 
@@ -203,19 +223,24 @@ if config.pre_feature_selection == True:
 else:
     chosen_columns = oh_columns + num_scale_columns
 
-# Select the chosen columns, and define the corresponding transformer's transformations to their columns
+# Select the chosen columns, and 
+# define the corresponding transformer's transformations to their columns
 chosen_oh_cols = list(set(chosen_columns) & set(oh_columns))
 chosen_num_cols = list(set(chosen_columns) & set(num_scale_columns))
+
+# %%
+chosen_train_data = train_data[chosen_columns]
+
 df_transformer = ColumnTransformer([
-    ('oh', oh_encoder, chosen_oh_cols),
-    ('num', num_scale_encoder, chosen_num_cols),
+    ('oh', oh_pipeline, chosen_oh_cols),
+    ('num', num_pipeline, chosen_num_cols),
 ], remainder='drop')
 
 # We fit this transformer on our training data, and transform/encode our training data
-encoded_X = df_transformer.fit_transform(train_data)
+encoded_X = df_transformer.fit_transform(chosen_train_data)
 
 # We also represent this same X using the original columns.
-new_oh_columns = df_transformer.named_transformers_.oh.get_feature_names(chosen_oh_cols)
+new_oh_columns = df_transformer.named_transformers_.oh.named_steps.encode.get_feature_names(chosen_oh_cols)
 encoded_columns = [ *new_oh_columns, *chosen_num_cols]
 df_encoded_X = pd.DataFrame(encoded_X, columns=encoded_columns)
 
@@ -292,13 +317,22 @@ gbm.fit(df_X_train, y_train, group=query_train,
         eval_at=[5, 10, 20], early_stopping_rounds=50)
 
 # %% [markdown]
-#
-
-# %% [markdown]
 # # Testing
 # ---
 
 # %% [markdown]
 # ## Testing with LGBM-Ranker
+
+# %%
+test_data = pd.read_csv('data/test_set_VU_DM.csv')
+
+# %%
+chosen_test_data = test_data[chosen_columns]
+
+# %%
+df_transformer.transform(chosen_test_data)
+
+# %%
+chosen_test_data['srch_query_affinity_score'].to_numpy().shape
 
 # %%
