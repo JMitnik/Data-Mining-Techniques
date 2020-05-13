@@ -1,69 +1,98 @@
-#!/usr/bin/env python
-# coding: utf-8
+# -*- coding: utf-8 -*-
+# ---
+# jupyter:
+#   jupytext:
+#     formats: ipynb,py:percent
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.4.2
+#   kernelspec:
+#     display_name: Python 3
+#     language: python
+#     name: python3
+# ---
 
+# %% [markdown]
 # # Start of Data Exploration
 
-# In[1]:
-
-
+# %%
 # Imports
 import sklearn as sk
 import pandas as pd
+import lightgbm as lgb
+from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.linear_model import Lasso, RidgeClassifier, LogisticRegression
 from sklearn.feature_selection import SelectFromModel, SelectKBest, RFE
 from sklearn.svm import LinearSVC, SVC
 
 
-# In[2]:
+# %% [markdown]
+# Config parameters:
+#
+# nrows: default dataframelength: 4958347
+#
+# classifiers: (SVC, linearSVC, RidgeClassifier)
+#     - SVC params: C (0-1), kernel (rbf, linear, poly), max_iter (-1, int), random_state (int)
+#     - linearSVC params: C (0-1), penalty (l1, l2), max_iter (1000, int), random_state (int) 
+#     - RidgeClassifier params: max_iter (1000, int), random_state (int) 
+#     
+# feature_selection: (SelectFromModel, SelectKBest, RFE)
+#     - SelectFromModel params: threshold (0-int), max_features (0-int)
+#     - SelectKBest params: threshold (0-int), k (0-int)
+#     - RFE params: n_features_to_select (0-int), step
 
-
+# %%
+import importlib
+import config
+importlib.reload(config)
 from config import Config
 # Config Settings
 config = Config(
-    pre_feature_selection=True,
+    nrows=1000,
+    pre_feature_selection=True, #todo Bug in prefeature selection = False
     train_data_subset=0.8,
-    #classifier=SVC(),
-    #feature_selection=SelectFromModel(lsvc, prefit=True),
-    feature_selection_dict={'threshold' : 2, 'max_features' : 2}
-
+    classifier=RidgeClassifier,
+    classifier_dict={'max_iter' : 1000, 'random_state' : 2},
+    feature_selection=RFE,
+    feature_selection_dict={'n_features_to_select' : 5, 'step' : 1} 
 )
 
-
-# In[3]:
-
-
-train_data = pd.read_csv('data/training_set_VU_DM.csv')
+# %%
+train_data = pd.read_csv('data/training_set_VU_DM.csv', nrows=config.nrows)
 original_columns = train_data.columns
 train_data.head(5) # Show top 5
 
-
+# %% [markdown]
 # # Manual Column exploration
 # ---
 # ## Main columns
 # - `search_id` seems to represent each individual 'user'.
 # - `booking_bool` is essentially the answer.
-# 
+#
 # ## Categorical features
 # The following features are categorical (to be onehot-encoded):
-# 
+#
 # User-specific
 # - `site_id`: category of website Expedia used
 # - `visitor_location_country_id`: categories of which country user is from
 # - `srch_destination_id`: where did the user search from
 # - `srch_saturday_night_bool`: boolean if stay includes staturday
-# 
+#
 # Hotel-specific:
 # - `prop_id`: categories of associated hotels
 # - `prop_brand_bool`: boolean if hotel is part of chain or not
 # - `promotion_flag`: displaying promotion or not
-# 
+#
 # Expedia-specific vs competitors 1_8:
 # - `comp{i}_rate`: if expedia has a lower price, do +1, 0 if same, -1 price is higher, null if no competitive data
 # - `comp{i}_inv`: if competitor has no availability, +1, 0 if both have availability, null if no competitive data
-# 
+#
 # ## Numerical features
-# 
+#
 # User-specific
 # - `visitor_hist_starrating`: average of previous stars of associated user
 # - `visitor_hist_adr_usd`: average price per night of hotels of associated user
@@ -74,7 +103,7 @@ train_data.head(5) # Show top 5
 # - `srch_room_count`: number of rooms **searched**
 # - `random_bool`: if sort was random at time of search
 # - `gross_booking_usd`: ❗Training-only❗ payment includign taxes, etc for hotel
-# 
+#
 # Hotel-specific
 # - `prop_starrating`: star rating of hotel (1-5)
 # - `prop_review_score`: average review score of hotel (1-5)
@@ -85,39 +114,37 @@ train_data.head(5) # Show top 5
 #     - ❗ Important: Different countries have different conventions.
 #     - Value can change per night
 # - `srch_query_affinity_score`: log probability a hotel is clicked in internet searches
-# 
+#
 # User-hotel coupled:
 # - `orig_destination_distance`: distance between hotel and customer at search-time (null means no distance calculated)
-# 
+#
 # Expedia-specific vs competitors 1_8:
 # - `comp{i}_rate_percent_diff`: absolute difference between expedia and competitor's price, with null being no competitive data
-# 
-# 
+#
+#
 # ## Unknown type
 # - `date_time`
 
+# %% [markdown]
 # # Initial data cleanup
 
+# %% [markdown]
 # ## Impute missing value
 
-# In[4]:
-
-
+# %%
 # We will have to cleanup our data next up. Let's first impute the missing columns. 
 # To do this we search for the columns with nans
 na_cols = train_data.isna().any()
 nan_cols = train_data.columns[na_cols]
 nan_cols
 
-
+# %% [markdown]
 # Aside from `comp{i}_rate` and `comp2_inv`, all of these columns are numerical features. We could, initially,
 # simply replace all these values with -1 for the moment.
-# 
+#
 # ❗ Important: Note, this is actually incorrect, but might work for the moment.
 
-# In[5]:
-
-
+# %%
 # Simple numerical impute: select numerical data, fill it with -1
 imputed_numerical_data = train_data[nan_cols].filter(regex='[^comp\d_(rate|inv)$]')
 imputed_numerical_data = imputed_numerical_data.fillna(-1)
@@ -127,10 +154,7 @@ train_data.update(imputed_numerical_data)
 del imputed_numerical_data
 train_data.head(5)
 
-
-# In[6]:
-
-
+# %%
 # Simple naive categorical impute
 na_cols = train_data.columns[train_data.isna().any()]
 imputed_categorical_data = train_data[na_cols].fillna(-2)
@@ -140,21 +164,16 @@ train_data.update(imputed_categorical_data)
 del imputed_categorical_data
 train_data.head(5)
 
-
+# %% [markdown]
 # # Initial feature transformation
 
-# In[7]:
-
-
+# %%
 # Imports for feature transformation
 from sklearn.impute import SimpleImputer
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
-
-# In[8]:
-
-
+# %%
 #Onehot encode the categorical variables
 oh_encoder = OneHotEncoder()
 oh_columns = ['site_id', 'visitor_location_country_id', 'prop_country_id', 'prop_id', 'prop_brand_bool', 'promotion_flag', 
@@ -196,14 +215,19 @@ encoded_columns = [ *new_oh_columns, *chosen_num_cols]
 encoded_df = pd.DataFrame(encoded_X, columns=encoded_columns)
 print (encoded_df.shape)
 
-
+# %% [markdown]
 # # Initial model feature selection
 
-# In[ ]:
+# %%
+X = train_data.copy()
+y = X.pop('booking_bool')
+classifier = config.classifier(**config.classifier_dict).fit(encoded_df, y)
+encoded_feature_df = config.feature_selection(classifier, **config.feature_selection_dict).fit_transform(encoded_df, y)
 
- 
-X = encoded_df.copy()
-y = X.pop('booking_bool') 
+print (encoded_feature_df.shape)  
+
+# %%
+gbm = lgb.LGBMRanker()
 
 X_train, X_test, y_train, y_test = train_test_split(X, 
                                                     y, 
@@ -224,20 +248,8 @@ gbm.fit(X_train, y_train, group=query_train,
 
 
 
-# In[ ]:
+results_df.to_csv('results/run.csv')
 
+# %%
 
-print ('hey')
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
+# %%
