@@ -15,7 +15,8 @@
 # ---
 
 # %% [markdown]
-# # Start of Data Exploration
+# # Introduction: Setting up
+# ---
 
 # %%
 # Imports
@@ -50,6 +51,7 @@ import importlib
 import config
 importlib.reload(config)
 from config import Config
+
 # Config Settings
 config = Config(
     nrows=1000,
@@ -126,10 +128,11 @@ train_data.head(5) # Show top 5
 # - `date_time`
 
 # %% [markdown]
-# # Initial data cleanup
+# # Feature Preprocessing
+# ---
 
 # %% [markdown]
-# ## Impute missing value
+# ## Data cleanup: Imputing missing values
 
 # %%
 # We will have to cleanup our data next up. Let's first impute the missing columns. 
@@ -165,7 +168,7 @@ del imputed_categorical_data
 train_data.head(5)
 
 # %% [markdown]
-# # Initial feature transformation
+# ## Feature encoding
 
 # %%
 # Imports for feature transformation
@@ -174,18 +177,18 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 # %%
-#Onehot encode the categorical variables
+# Onehot encode the categorical variables
 oh_encoder = OneHotEncoder()
 oh_columns = ['site_id', 'visitor_location_country_id', 'prop_country_id', 'prop_id', 'prop_brand_bool', 'promotion_flag', 
               'srch_destination_id', 'srch_saturday_night_bool', 'random_bool', 'click_bool'
              ]
-#todo competitor columns
 
+# TODO: competitor columns
 for column in oh_columns:
     train_data[column]=train_data[column].astype('category')
 
 
-#encode the numerical values
+# Encode the numerical values
 num_scale_encoder = StandardScaler()
 num_scale_columns = ['visitor_hist_starrating', 'visitor_hist_adr_usd', 'prop_starrating', 'prop_review_score', 
                      'prop_location_score1', 'prop_location_score2', 'prop_log_historical_price', 'price_usd', 
@@ -193,14 +196,14 @@ num_scale_columns = ['visitor_hist_starrating', 'visitor_hist_adr_usd', 'prop_st
                      'srch_room_count', 'srch_query_affinity_score', 'orig_destination_distance' 
                     ]
 
-#we do a preselection of columns that we feel will become useful features after encoding
+# We do a preselection of columns that we feel will become useful features after encoding
 if config.pre_feature_selection == True:
     chosen_columns = ['prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2', 
                       'prop_log_historical_price', 'price_usd', 'srch_query_affinity_score',  'promotion_flag']
 else:
     chosen_columns = oh_columns + num_scale_columns
 
-
+# Select the chosen columns, and define the corresponding transformer's transformations to their columns
 chosen_oh_cols = list(set(chosen_columns) & set(oh_columns))
 chosen_num_cols = list(set(chosen_columns) & set(num_scale_columns))
 df_transformer = ColumnTransformer([
@@ -208,48 +211,94 @@ df_transformer = ColumnTransformer([
     ('num', num_scale_encoder, chosen_num_cols),
 ], remainder='drop')
 
-# We fit this transformer on our training data, and transform our training data into this new format
+# We fit this transformer on our training data, and transform/encode our training data
 encoded_X = df_transformer.fit_transform(train_data)
+
+# We also represent this same X using the original columns.
 new_oh_columns = df_transformer.named_transformers_.oh.get_feature_names(chosen_oh_cols)
 encoded_columns = [ *new_oh_columns, *chosen_num_cols]
-encoded_df = pd.DataFrame(encoded_X, columns=encoded_columns)
-print (encoded_df.shape)
+df_encoded_X = pd.DataFrame(encoded_X, columns=encoded_columns)
 
 # %% [markdown]
-# # Initial model feature selection
+# ## Feature selection
 
 # %%
-X = encoded_df.copy()
-y = X.pop('booking_bool')
-classifier = config.classifier(**config.classifier_dict).fit(encoded_df, y)
-encoded_feature_df = config.feature_selection(classifier, **config.feature_selection_dict).fit_transform(encoded_df, y)
-
-print (encoded_feature_df.shape)  
+# We extract the y-target in general
+X_only = train_data.copy()
+y = X_only.pop('booking_bool')
 
 # %%
+# We apply feature selection using the model from our config
+feature_selector = config.feature_selection(classifier, **config.feature_selection_dict)
+encoded_df = feature_selector.fit_transform(encoded_df, y)
+
+# %%
+# Utility cell to investigate data elements
+# Data elements we have available
+# Encoded data:
+    # - df_encoded_X: Dataframe that contains the preprocessed features
+    # - encoded_X: numpy version of `encoded_df`
+# Original data:
+    # - train_data: training data, but cleaned up
+    # - X_only: `train_data` without `booking_bool`
+
+# %% [markdown]
+# # Training a model
+
+# %% [markdown]
+# We will now try a various amount of models with parameters.
+
+# %%
+# Utility functions
+
+# Gets the sizes of same search-id chunks.
+get_user_groups_from_df = lambda df: df.groupby('srch_id').size().tolist()
+
+# %%
+# Reassign `srch_id`
+df_encoded_X['srch_id'] = train_data['srch_id'].astype(int)
+
+# %% [markdown]
+# ### Learn-to-rank with LGBMRanker
+
+# %% [markdown]
+# If we decide to split our data into train/val, we can do it this way.
+
+# %%
+from sklearn.model_selection import GroupShuffleSplit
+
+# Split data into 80% train and 20% validation, maintaining the groups however.
+train_inds, val_inds = next(GroupShuffleSplit(test_size=.20, n_splits=2, random_state = 7).split(df_encoded_X, groups=df_encoded_X['srch_id']))
+
+# Split train / validation by their indices
+df_X_train = df_encoded_X.iloc[train_inds]
+y_train = y[train_inds]
+df_X_val = df_encoded_X.iloc[val_inds]
+y_val = y[val_inds]
+
+# Get the groups related to `srch_id`
+query_train = get_user_groups_from_df(df_X_train)
+query_val = get_user_groups_from_df(df_X_val)
+
+# %%
+sum(query_train)
+
+# %%
+# We define our ranker (default parameters)
 gbm = lgb.LGBMRanker()
 
-X_train, X_test, y_train, y_test = train_test_split(X, 
-                                                    y, 
-                                                    test_size=0.2, 
-                                                    random_state=1)
-X_train, X_val, y_train, y_val = train_test_split(X_train,
-                                                  y_train, 
-                                                  test_size=0.2, 
-                                                  random_state=1)
-query_train = [X_train.shape[0]]
-query_val = [X_val.shape[0]]
-query_test = [X_test.shape[0]]
-
-gbm.fit(X_train, y_train, group=query_train,
-        eval_set=[(X_val, y_val)], eval_group=[query_val],
+gbm.fit(df_X_train, y_train, group=query_train,
+        eval_set=[(df_X_val, y_val)], eval_group=[query_val],
         eval_at=[5, 10, 20], early_stopping_rounds=50)
 
+# %% [markdown]
+#
 
+# %% [markdown]
+# # Testing
+# ---
 
-
-results_df.to_csv('results/run.csv')
-
-# %%
+# %% [markdown]
+# ## Testing with LGBM-Ranker
 
 # %%
