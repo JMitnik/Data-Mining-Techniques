@@ -54,7 +54,7 @@ from config import Config
 
 # Config Settings
 config = Config(
-    nrows=1000,
+    nrows=None,
     pre_feature_selection=True, #todo Bug in prefeature selection = False
     train_data_subset=0.8,
     classifier=RidgeClassifier,
@@ -64,7 +64,10 @@ config = Config(
 )
 
 # %%
-train_data = pd.read_csv('data/training_set_VU_DM.csv', nrows=config.nrows)
+if config.nrows is not None:
+    train_data = pd.read_csv('data/training_set_VU_DM.csv', nrows=config.nrows)
+else:
+    train_data = pd.read_csv('data/training_set_VU_DM.csv')
 original_columns = train_data.columns
 train_data.head(5) # Show top 5
 
@@ -254,8 +257,11 @@ y = X_only.pop('booking_bool')
 
 # %%
 # We apply feature selection using the model from our config
+classifier = config.classifier(**config.classifier_dict)
 feature_selector = config.feature_selection(classifier, **config.feature_selection_dict)
-encoded_df = feature_selector.fit_transform(encoded_df, y)
+
+# TODO: Fix me (re-apply the encoded columns pls)
+# df_encoded_X = feature_selector.fit_transform(df_encoded_X, y)
 
 # %%
 # Utility cell to investigate data elements
@@ -305,8 +311,10 @@ y_val = y[val_inds]
 query_train = get_user_groups_from_df(df_X_train)
 query_val = get_user_groups_from_df(df_X_val)
 
-# %%
-sum(query_train)
+# Remove srch_id
+df_X_train.pop('srch_id')
+df_X_val.pop('srch_id')
+print("Ready to rank!")
 
 # %%
 # We define our ranker (default parameters)
@@ -316,6 +324,15 @@ gbm.fit(df_X_train, y_train, group=query_train,
         eval_set=[(df_X_val, y_val)], eval_group=[query_val],
         eval_at=[5, 10, 20], early_stopping_rounds=50)
 
+# %%
+# Save model
+import os
+def ensure_path(path_to_file):
+    os.makedirs(os.path.dirname(path_to_file), exist_ok=True)
+
+ensure_path('storage/best_gbm.txt')
+gbm.booster_.save_model('storage/best_gbm.txt')
+
 # %% [markdown]
 # # Testing
 # ---
@@ -324,15 +341,50 @@ gbm.fit(df_X_train, y_train, group=query_train,
 # ## Testing with LGBM-Ranker
 
 # %%
-test_data = pd.read_csv('data/test_set_VU_DM.csv')
+# Read test data, and use the same columns as was used for training
+df_test_data = pd.read_csv('data/test_set_VU_DM.csv')
+chosen_test_data = df_test_data[chosen_columns]
+
+# Apply transformations (encoding + selection)
+encoded_test_data = df_transformer.transform(chosen_test_data)
+
+# TODO: Fix me
+# filtered_test_data = feature_selector.transform(encoded_test_data)
+filtered_test_data = encoded_test_data
+
+X_test = filtered_test_data
 
 # %%
-chosen_test_data = test_data[chosen_columns]
+# Split test-data into groups based on the original data
+groups = df_test_data.groupby('srch_id').indices
+groups_by_idxs = list(groups.values())
+
 
 # %%
-df_transformer.transform(chosen_test_data)
+# Predictions
+def predict_for_group(X_test, group_idxs, df_test_data):
+    # Use gbm to predict
+    X_test_group = X_test[group_idxs]
+    preds = gbm.predict(X_test_group)
+    preds = preds.argsort()[::-1] # Reverses
+    
+    # Get th
+    pred_idxs = group_idxs[preds]
+    pred_props = df_test_data.loc[pred_idxs, ['srch_id', 'prop_id']]
+    
+    return pred_props
+
 
 # %%
-chosen_test_data['srch_query_affinity_score'].to_numpy().shape
+# Perform the prediction (Can take a while, shitton of predictions)
+result = []
+
+for i, idx_group in enumerate(groups_by_idxs):
+    preds = predict_for_group(X_test, idx_group, df_test_data)
+    result.append(preds)
+    
+    if i % 10000 == 0:
+        print(f"Doing group {i + 1} / {len(groups_by_idxs)} now")
+
 
 # %%
