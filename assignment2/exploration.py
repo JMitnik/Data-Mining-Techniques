@@ -354,6 +354,9 @@ filtered_test_data = encoded_test_data
 
 X_test = filtered_test_data
 
+# %% [markdown]
+# #### Predicting on a per-group basis: slow as hell (skip section for faster method)
+
 # %%
 # Split test-data into groups based on the original data
 groups = df_test_data.groupby('srch_id').indices
@@ -374,17 +377,44 @@ def predict_for_group(X_test, group_idxs, df_test_data):
     
     return pred_props
 
+# %%
+# Doing it on a 'per-group basis'
+# Commented because it is slow.
+# # Perform the prediction (Can take a while, shitton of predictions)
+# result = []
+
+# for i, idx_group in enumerate(groups_by_idxs):
+#     preds = predict_for_group(X_test, idx_group, df_test_data)
+#     result.append(preds)
+    
+#     if i % 10000 == 0:
+#         print(f"Doing group {i + 1} / {len(groups_by_idxs)} now")
+
 
 # %%
-# Perform the prediction (Can take a while, shitton of predictions)
-result = []
+len(result)
 
-for i, idx_group in enumerate(groups_by_idxs):
-    preds = predict_for_group(X_test, idx_group, df_test_data)
-    result.append(preds)
-    
-    if i % 10000 == 0:
-        print(f"Doing group {i + 1} / {len(groups_by_idxs)} now")
+# %% [markdown]
+# #### Predicting all at once: More performant
 
+# %%
+pred_all = gbm.predict(X_test)
+df_test_data['pred'] = pred_all
+
+# %%
+pred_all
+
+# %%
+# Sort predictions based on srch_id and pred
+sorted_preds = df_test_data[['srch_id', 'prop_id', 'pred']].sort_values(by=['srch_id', 'pred'], ascending=[True, False]).reset_index()
+
+# Save
+sorted_preds[['srch_id', 'prop_id']].to_csv('results.csv', index=False)
+
+# %%
+sorted_preds
+
+# %%
+pd.read_csv('results.csv', nrows=100)
 
 # %%
