@@ -28,6 +28,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.linear_model import Lasso, RidgeClassifier, LogisticRegression
 from sklearn.feature_selection import SelectFromModel, SelectKBest, RFE
+from sklearn.datasets import load_iris
 from sklearn.svm import LinearSVC, SVC
 
 
@@ -55,7 +56,7 @@ from config import Config
 # Config Settings
 config = Config(
     nrows=None,
-    pre_feature_selection=True, #todo Bug in prefeature selection = False
+    pre_feature_selection=False, #todo Bug in prefeature selection = False
     train_data_subset=0.8,
     classifier=RidgeClassifier,
     classifier_dict={'max_iter' : 1000, 'random_state' : 2},
@@ -70,6 +71,46 @@ else:
     train_data = pd.read_csv('data/training_set_VU_DM.csv')
 original_columns = train_data.columns
 train_data.head(5) # Show top 5
+train_data_nans = train_data
+
+# %%
+# #remove columns with over 50% nans
+# for column in train_data_nans.columns:
+#     if train_data_nans[column].isnull().sum()/len(train_data_nans) > 0.5:
+#         train_data_nans = train_data_nans.drop(columns=column, axis=1)
+        
+# train_data_nans.isnull().sum()/len(train_data_nans)
+# #remove data with > 0.50 nans
+
+# %%
+#fill in nans with mean values:
+# na_cols = train_data_nans.isna().any()
+# nan_cols = train_data_nans.columns[na_cols]
+# for column in nan_cols:
+#     print (column)
+#     if column in ['visitor_hist_starrating', 'visitor_hist_adr_usd',  
+#                      'srch_length_of_stay', 'srch_booking_window', 
+#                      'srch_adults_count', 'srch_children_count',
+#                      'srch_room_count'                      
+#                     ]:
+#         train_data_nans[column] = train_data_nans.groupby('srch_id').transform(lambda x: x.fillna(x.mean()))
+#     elif column in ['prop_starrating', 'prop_review_score', 
+#                        'prop_location_score1', 'prop_location_score2', 
+#                        'prop_log_historical_price', 'price_usd',
+#                        'search_', 'orig_destination_distance',  
+#                        'srch_query_affinity_score'
+#                       ]:
+#         train_data_nans[column] = train_data_nans.groupby('prop_id').transform(lambda x: x.fillna(x.mean()))
+
+    
+
+# train_data_nans.isnull().sum()/len(train_data_nans)
+
+
+
+
+# %%
+print (train_data_nans.head(5))
 
 # %% [markdown]
 # # Manual Column exploration
@@ -256,12 +297,14 @@ X_only = train_data.copy()
 y = X_only.pop('booking_bool')
 
 # %%
-# We apply feature selection using the model from our config
+##### We apply feature selection using the model from our config
 classifier = config.classifier(**config.classifier_dict)
 feature_selector = config.feature_selection(classifier, **config.feature_selection_dict)
-
-# TODO: Fix me (re-apply the encoded columns pls)
-# df_encoded_X = feature_selector.fit_transform(df_encoded_X, y)
+feature_encoded_X = feature_selector.fit_transform(df_encoded_X, y)
+# TODO: support_ method might not work on every featureselector we choose, test this
+bool_vec = feature_selector.support_
+feature_cols = np.array(encoded_columns)[bool_vec]
+df_feature_encoded = pd.DataFrame(feature_encoded_X, columns=feature_cols)
 
 # %%
 # Utility cell to investigate data elements
@@ -287,7 +330,7 @@ get_user_groups_from_df = lambda df: df.groupby('srch_id').size().tolist()
 
 # %%
 # Reassign `srch_id`
-df_encoded_X['srch_id'] = train_data['srch_id'].astype(int)
+df_feature_encoded['srch_id'] = train_data['srch_id'].astype(int)
 
 # %% [markdown]
 # ### Learn-to-rank with LGBMRanker
@@ -299,12 +342,12 @@ df_encoded_X['srch_id'] = train_data['srch_id'].astype(int)
 from sklearn.model_selection import GroupShuffleSplit
 
 # Split data into 80% train and 20% validation, maintaining the groups however.
-train_inds, val_inds = next(GroupShuffleSplit(test_size=.20, n_splits=2, random_state = 7).split(df_encoded_X, groups=df_encoded_X['srch_id']))
+train_inds, val_inds = next(GroupShuffleSplit(test_size=.20, n_splits=2, random_state = 7).split(df_feature_encoded, groups=df_feature_encoded['srch_id']))
 
 # Split train / validation by their indices
-df_X_train = df_encoded_X.iloc[train_inds]
+df_X_train = df_feature_encoded.iloc[train_inds]
 y_train = y[train_inds]
-df_X_val = df_encoded_X.iloc[val_inds]
+df_X_val = df_feature_encoded.iloc[val_inds]
 y_val = y[val_inds]
 
 # Get the groups related to `srch_id`
@@ -347,11 +390,11 @@ chosen_test_data = df_test_data[chosen_columns]
 
 # Apply transformations (encoding + selection)
 encoded_test_data = df_transformer.transform(chosen_test_data)
+df_encoded_test_data = pd.DataFrame(encoded_test_data, columns=encoded_columns)
 
-# TODO: Fix me
-# filtered_test_data = feature_selector.transform(encoded_test_data)
-filtered_test_data = encoded_test_data
-
+feature_cols = (list(feature_cols))
+filtered_test_data = df_encoded_test_data[feature_cols]
+                                    
 X_test = filtered_test_data
 
 # %% [markdown]
@@ -361,6 +404,7 @@ X_test = filtered_test_data
 # Split test-data into groups based on the original data
 groups = df_test_data.groupby('srch_id').indices
 groups_by_idxs = list(groups.values())
+print (groups_by_idxs)
 
 
 # %%
@@ -392,7 +436,7 @@ def predict_for_group(X_test, group_idxs, df_test_data):
 
 
 # %%
-len(result)
+# len(result)
 
 # %% [markdown]
 # #### Predicting all at once: More performant
