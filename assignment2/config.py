@@ -10,3 +10,7 @@ class Config:
     classifier_dict: dict
     feature_selection: any
     feature_selection_dict: dict
+    dimensionality_reduc: bool
+    dimension_features: int
+    feature_engineering: bool
+    naive_imputing: bool
