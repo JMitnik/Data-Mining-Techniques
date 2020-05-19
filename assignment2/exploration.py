@@ -31,6 +31,9 @@ from sklearn.linear_model import Lasso, RidgeClassifier, LogisticRegression
 from sklearn.feature_selection import SelectFromModel, SelectKBest, RFE
 from sklearn.datasets import load_iris
 from sklearn.svm import LinearSVC, SVC
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.decomposition import PCA, TruncatedSVD
 
 
@@ -57,8 +60,8 @@ from config import Config
 
 # Config Settings
 config = Config(
-    nrows=None,
-    pre_feature_selection=False, #todo Bug in prefeature selection = False
+    nrows=1000,
+    pre_feature_selection=False,
     train_data_subset=0.8,
     classifier=SVC,
     classifier_dict={'C' : 1, 'kernel' : 'rbf', 'random_state' : 2},
@@ -67,7 +70,7 @@ config = Config(
     dimensionality_reduc=True,
     dimension_features=25,
     feature_engineering=True,  
-    naive_imputing=False #todo faster method for averaging nan values if naive=False
+    naive_imputing=True #todo faster method for averaging nan values if naive=False
 )
 
 # %%
@@ -77,7 +80,6 @@ else:
     train_data = pd.read_csv('data/training_set_VU_DM.csv')
 original_columns = train_data.columns
 train_data.head(5) # Show top 5
-train_data_nans = train_data
 
 # %% [markdown]
 # # Manual Column exploration
@@ -139,11 +141,32 @@ train_data_nans = train_data
 # - `date_time`
 
 # %% [markdown]
+# Putting all columns except competitor columns in either categorical list or numerical list.
+
+# %%
+categorical_cols = ['srch_id', 'date_time', 'site_id', 'visitor_location_country_id', 'prop_country_id',
+                    'prop_id', 'prop_brand_bool', 'promotion_flag', 'position',
+                    'srch_destination_id', 'srch_saturday_night_bool', 'random_bool',
+                    'click_bool', 'booking_bool'                  
+                   ]
+numerical_cols = ['visitor_hist_starrating', 'visitor_hist_adr_usd', 
+                  'prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2',
+                  'prop_log_historical_price', 'price_usd', 
+                  'srch_length_of_stay', 'srch_booking_window', 
+                  'srch_adults_count', 'srch_children_count',
+                  'srch_room_count', 'srch_query_affinity_score', 
+                  'orig_destination_distance', 'gross_bookings_usd'
+                  ]
+
+# %% [markdown]
 # # Feature Preprocessing
 # ---
 
 # %% [markdown]
 # ## Feature Engineering
+
+# %% [markdown]
+# When engineering we want to add them to either the numerical or categorical columnlist and append them to the dataframe
 
 # %%
 if config.feature_engineering:
@@ -165,9 +188,22 @@ if config.feature_engineering:
 
     mcol=train_data.loc[:,['prop_location_score1', 'prop_location_score2']]
     train_data['prop_mean_score'] = mcol.mean(axis=1)
+    categorical_engi = ['same_country_visitor_prop', 'viable_comp']
+    numerical_engi = ['prop_mean_score', 'month', 'year']
+    for col in categorical_engi:
+        categorical_cols.append(col)
+    for col in numerical_engi:
+        numerical_cols.append(col)
+
+
+    
+
+# %%
+for column in train_data.columns:
+    print (column, train_data[column].dtype)
 
 # %% [markdown]
-# If we engineer new features, we might want to remove their old columns.
+# If we engineer new features, we might want to remove their old columns from the dataframe and columnlists.
 
 # %%
 if config.feature_engineering:
@@ -177,9 +213,15 @@ if config.feature_engineering:
         train_data = train_data.drop(columns=['comp' + str(i+1) + '_rate'])
         train_data = train_data.drop(columns=['comp' + str(i+1) + '_inv'])
         train_data = train_data.drop(columns=['comp' + str(i+1) + '_rate_percent_diff'])
+    categorical_to_remove = ['visitor_location_country_id', 'date_time', 'prop_country_id']
+    numerical_to_remove = ['prop_location_score1', 'prop_location_score2']
+    
+    for col in categorical_to_remove:
+        categorical_cols.remove(col)
+    for col in numerical_to_remove:
+        numerical_cols.remove(col)        
 
 # %%
-train_data.columns
 
 # %% [markdown]
 # ## Data cleanup: Imputing missing values
@@ -227,11 +269,11 @@ if config.naive_imputing:
 #remove columns with over 50% nans
 if config.naive_imputing == False:
 
-    for column in train_data_nans.columns:
-        if train_data_nans[column].isnull().sum()/len(train_data_nans) > 0.5:
-            train_data_nans = train_data_nans.drop(columns=column, axis=1)
+    for column in train_data.columns:
+        if train_data[column].isnull().sum()/len(train_data) > 0.5:
+            train_data = train_data.drop(columns=column, axis=1)
 
-train_data_nans.isnull().sum()/len(train_data_nans)
+train_data.isnull().sum()/len(train_data)
     #remove data with > 0.50 nans
 
 # %% [markdown]
@@ -241,8 +283,8 @@ train_data_nans.isnull().sum()/len(train_data_nans)
 if config.naive_imputing == False:
 
     #fill in nans with mean values:
-    na_cols = train_data_nans.isna().any()
-    nan_cols = train_data_nans.columns[na_cols]
+    na_cols = train_data.isna().any()
+    nan_cols = train_data.columns[na_cols]
     for column in nan_cols:
         print (column)
         if column in ['visitor_hist_starrating', 'visitor_hist_adr_usd',  
@@ -250,16 +292,36 @@ if config.naive_imputing == False:
                          'srch_adults_count', 'srch_children_count',
                          'srch_room_count'                      
                         ]:
-            train_data_nans[column] = train_data_nans.groupby('srch_id').transform(lambda x: x.fillna(x.mean()))
+            train_data[column] = train_data.groupby('srch_id').transform(lambda x: x.fillna(x.mean()))
         elif column in ['prop_starrating', 'prop_review_score', 
                            'prop_location_score1', 'prop_location_score2', 
                            'prop_log_historical_price', 'price_usd',
                            'search_', 'orig_destination_distance',  
                            'srch_query_affinity_score'
                           ]:
-            train_data_nans[column] = train_data_nans.groupby('prop_id').transform(lambda x: x.fillna(x.mean()))
+            train_data[column] = train_data.groupby('prop_id').transform(lambda x: x.fillna(x.mean()))
 
-    train_data_nans.isnull().sum()/len(train_data_nans)
+    train_data.isnull().sum()/len(train_data)
+    
+if config.naive_imputing == True:
+        # Here we definehow we would like to encode
+
+    # For One-Hot Encoding
+    # Onehot encode the categorical variables
+    oh_impute = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=-2)
+    oh_encoder = OneHotEncoder(handle_unknown='ignore')
+    oh_pipeline = Pipeline([
+        ('impute', oh_impute),
+        ('encode', oh_encoder)
+    ])
+
+    # Encode the numerical values
+    num_impute = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=-1)
+    num_scale_encoder = StandardScaler()
+    num_pipeline = Pipeline([
+        ('impute', num_impute),
+        ('encode', num_scale_encoder)
+    ])
 
 
 
@@ -274,58 +336,29 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 # %%
-# Here we definehow we would like to encode
-
-# For One-Hot Encoding
-# Onehot encode the categorical variables
-oh_columns = ['site_id', 'visitor_location_country_id', 'prop_country_id', 
-              'prop_id', 'prop_brand_bool', 'promotion_flag', 
-              'srch_destination_id', 'srch_saturday_night_bool', 'random_bool'
-             ]
-oh_impute = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=-2)
-oh_encoder = OneHotEncoder(handle_unknown='ignore')
-oh_pipeline = Pipeline([
-    ('impute', oh_impute),
-    ('encode', oh_encoder)
-])
-# TODO: competitor columns
-for column in oh_columns:
-    train_data[column]=train_data[column].astype('category')
-
-
-# Encode the numerical values
-num_scale_columns = ['visitor_hist_starrating', 'visitor_hist_adr_usd', 
-                     'prop_starrating', 'prop_review_score', 
-                     'prop_location_score1', 'prop_location_score2', 
-                     'prop_log_historical_price', 'price_usd', 
-                     'srch_length_of_stay', 'srch_booking_window', 
-                     'srch_adults_count', 'srch_children_count',
-                     'srch_room_count', 'srch_query_affinity_score', 
-                     'orig_destination_distance' 
-                    ]
-num_impute = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=-1)
-num_scale_encoder = StandardScaler()
-num_pipeline = Pipeline([
-    ('impute', num_impute),
-    ('encode', num_scale_encoder)
-])
-
-# %%
 # Manual feature-selection
 # We do a preselection of columns that we feel will become useful features after encoding
-if config.pre_feature_selection == True:
+if config.pre_feature_selection:
     chosen_columns = ['prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2', 
                       'prop_log_historical_price', 'price_usd', 'srch_query_affinity_score',  'promotion_flag']
+    if config.feature_engineering:
+        chosen_columns = ['prop_starrating', 'prop_review_score', 'prop_mean_score', 'same_country_visitor_prop'
+                          'prop_log_historical_price', 'price_usd', 'srch_query_affinity_score',  'promotion_flag', 
+                          'month', 'viable_comp', 'year']
 else:
-    chosen_columns = oh_columns + num_scale_columns
+    chosen_columns = categorical_cols + numerical_cols
 
+for column in categorical_cols:
+    train_data[column]=train_data[column].astype('category')
+    
+    
+chosen_columns = list(set(chosen_columns) & set(train_data.columns))
 # Select the chosen columns, and 
 # define the corresponding transformer's transformations to their columns
-chosen_oh_cols = list(set(chosen_columns) & set(oh_columns))
-chosen_num_cols = list(set(chosen_columns) & set(num_scale_columns))
+chosen_oh_cols = list(set(chosen_columns) & set(categorical_cols))
+chosen_num_cols = list(set(chosen_columns) & set(numerical_cols))
 
 # %%
-print (chosen_columns)
 chosen_train_data = train_data[chosen_columns]
 
 df_transformer = ColumnTransformer([
@@ -350,8 +383,8 @@ y = X_only.pop('booking_bool')
 
 # %%
 ##### We apply feature selection using the model from our config
-if config.PCA_use:
-    pca = TruncatedSVD(n_components=config.PCA_features)
+if config.dimensionality_reduc:
+    pca = TruncatedSVD(n_components=config.dimension_features)
     feature_encoded_X = pca.fit_transform(encoded_X)
 else:
     classifier = config.classifier(**config.classifier_dict)
@@ -361,6 +394,7 @@ else:
     bool_vec = feature_selector.support_
 
 # %%
+train_data.isna().any()
 # Utility cell to investigate data elements
 # Data elements we have available
 # Encoded data:
@@ -424,13 +458,20 @@ query_val = get_user_groups_from_df(train_data.iloc[val_inds])
 print("Ready to rank!")
 
 # %%
+y_val
 
-# %% [raw]
-#
+# %%
+for column in feature_encoded_X:
+    print (column.dtype)
+
+# %%
+#tidreassigning datatypes of x/y train/val (bool, np.array, to_list(), int) bugs gbm.fit
+
+
 
 # %%
 # We define our ranker (default parameters)
-gbm = lgb.LGBMRanker(n_estimators=200)
+gbm = lgb.LGBMRanker()
 
 gbm.fit(df_X_train, y_train, group=query_train,
         eval_set=[(df_X_val, y_val)], eval_group=[query_val],
