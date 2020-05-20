@@ -60,7 +60,9 @@ from config import Config
 
 # Config Settings
 config = Config(
+    label='TrialAndError',
     nrows=1000,
+    valid_size=0.2,
     pre_feature_selection=False,
     train_data_subset=0.8,
     classifier=SVC,
@@ -78,7 +80,8 @@ if config.nrows is not None:
     train_data = pd.read_csv('data/training_set_VU_DM.csv', nrows=config.nrows)
 else:
     train_data = pd.read_csv('data/training_set_VU_DM.csv')
-original_columns = train_data.columns
+
+    original_columns = train_data.columns
 train_data.head(5) # Show top 5
 
 # %% [markdown]
@@ -170,12 +173,19 @@ numerical_cols = ['visitor_hist_starrating', 'visitor_hist_adr_usd',
 
 # %%
 if config.feature_engineering:
-
+    # Do some date feature engineering     
     time = pd.to_datetime(train_data['date_time'])
-    train_data['month']=time.dt.month
-    train_data['year']=time.dt.year
-    train_data['same_country_visitor_prop']=np.where(train_data['visitor_location_country_id'] == train_data['prop_country_id'],1,0)
-    train_data['viable_comp']= np.where(
+    train_data['month'] = time.dt.month
+    train_data['year'] = time.dt.year
+    
+    # Check if a user comes from same country
+    train_data['same_country_visitor_prop'] = np.where(
+        train_data['visitor_location_country_id'] == train_data['prop_country_id'], 
+        1, 0
+    )
+    
+    # Check if Expedia has no competitors that deal better prices.     
+    train_data['viable_comp'] = np.where(
                       (train_data['comp1_rate']== -1)& (train_data['comp1_inv']== 0) |
                       (train_data['comp2_rate']== -1)& (train_data['comp2_inv']== 0) |
                       (train_data['comp3_rate']== -1)& (train_data['comp3_inv']== 0) |
@@ -186,42 +196,42 @@ if config.feature_engineering:
                       (train_data['comp8_rate']== -1)& (train_data['comp8_inv']== 0) 
                       ,1,0)
 
-    mcol=train_data.loc[:,['prop_location_score1', 'prop_location_score2']]
+    # Average location scores of property    
+    mcol = train_data.loc[:,['prop_location_score1', 'prop_location_score2']]
     train_data['prop_mean_score'] = mcol.mean(axis=1)
-    categorical_engi = ['same_country_visitor_prop', 'viable_comp']
-    numerical_engi = ['prop_mean_score', 'month', 'year']
-    for col in categorical_engi:
-        categorical_cols.append(col)
-    for col in numerical_engi:
-        numerical_cols.append(col)
-
-
     
-
-# %%
-for column in train_data.columns:
-    print (column, train_data[column].dtype)
+    # Add categorical features to our list of categorical columns     
+    categorical_engineered = ['same_country_visitor_prop', 'viable_comp']
+    for col in numerical_engineered:
+        categorical_cols.append(col)
+        
+    # Add numerical features to our list of numerical columns     
+    numerical_engineered = ['prop_mean_score', 'month', 'year']
+    for col in numerical_engineered:
+        numerical_cols.append(col)
 
 # %% [markdown]
 # If we engineer new features, we might want to remove their old columns from the dataframe and columnlists.
 
 # %%
+# Maybe we can do without removing them; we simply don't include them in `chosen_cols`.
 if config.feature_engineering:
-    train_data = train_data.drop(columns=['date_time', 'visitor_location_country_id', 'prop_country_id', 
-                             'prop_location_score1', 'prop_location_score2'])
-    for i in range(8):
-        train_data = train_data.drop(columns=['comp' + str(i+1) + '_rate'])
-        train_data = train_data.drop(columns=['comp' + str(i+1) + '_inv'])
-        train_data = train_data.drop(columns=['comp' + str(i+1) + '_rate_percent_diff'])
-    categorical_to_remove = ['visitor_location_country_id', 'date_time', 'prop_country_id']
-    numerical_to_remove = ['prop_location_score1', 'prop_location_score2']
-    
-    for col in categorical_to_remove:
-        categorical_cols.remove(col)
-    for col in numerical_to_remove:
-        numerical_cols.remove(col)        
+    try:
+        train_data = train_data.drop(columns=['date_time', 'visitor_location_country_id', 'prop_country_id', 
+                                 'prop_location_score1', 'prop_location_score2'])
+        for i in range(8):
+            train_data = train_data.drop(columns=['comp' + str(i+1) + '_rate'])
+            train_data = train_data.drop(columns=['comp' + str(i+1) + '_inv'])
+            train_data = train_data.drop(columns=['comp' + str(i+1) + '_rate_percent_diff'])
+        categorical_to_remove = ['visitor_location_country_id', 'date_time', 'prop_country_id']
+        numerical_to_remove = ['prop_location_score1', 'prop_location_score2']
 
-# %%
+        for col in categorical_to_remove:
+            categorical_cols.remove(col)
+        for col in numerical_to_remove:
+            numerical_cols.remove(col)
+    except:
+        print("We probably removed these features already")
 
 # %% [markdown]
 # ## Data cleanup: Imputing missing values
@@ -231,7 +241,8 @@ if config.feature_engineering:
 # To do this we search for the columns with nans
 na_cols = train_data.isna().any()
 nan_cols = train_data.columns[na_cols]
-nan_cols
+print("These are columns with NaN:")
+print(nan_cols.to_list())
 
 # %% [markdown]
 # Aside from `comp{i}_rate` and `comp2_inv`, all of these columns are numerical features. We could, initially,
@@ -267,21 +278,18 @@ if config.naive_imputing:
 
 # %%
 #remove columns with over 50% nans
-if config.naive_imputing == False:
-
+if not config.naive_imputing:
     for column in train_data.columns:
         if train_data[column].isnull().sum()/len(train_data) > 0.5:
             train_data = train_data.drop(columns=column, axis=1)
 
 train_data.isnull().sum()/len(train_data)
-    #remove data with > 0.50 nans
 
 # %% [markdown]
 # ### slow method of averaging mean values
 
 # %%
-if config.naive_imputing == False:
-
+if not config.naive_imputing:
     #fill in nans with mean values:
     na_cols = train_data.isna().any()
     nan_cols = train_data.columns[na_cols]
@@ -303,8 +311,8 @@ if config.naive_imputing == False:
 
     train_data.isnull().sum()/len(train_data)
     
-if config.naive_imputing == True:
-        # Here we definehow we would like to encode
+if config.naive_imputing:
+    # Here we definehow we would like to encode
 
     # For One-Hot Encoding
     # Onehot encode the categorical variables
@@ -322,9 +330,6 @@ if config.naive_imputing == True:
         ('impute', num_impute),
         ('encode', num_scale_encoder)
     ])
-
-
-
 
 # %% [markdown]
 # ## Feature encoding
@@ -419,15 +424,8 @@ get_user_groups_from_df = lambda df: df.groupby('srch_id', observed=True).size()
 
 # %%
 # Reassign `srch_id`
-# feature_encoded_X['srch_id'] = train_data['srch_id'].astype(int)
 srch_id_col = train_data['srch_id'].astype(int)
-srch_id_col = np.array(srch_id_col)
-# srch_id_col = srch_id_col.reshape(-1,1)
-# print (srch_id_col.shape)
-# print(feature_encoded_X.shape)
-
-# feature_encoded_X_2 = np.vstack((feature_encoded_X, srch_id_col))
-# print (feature_encoded_X_2.shape)
+srch = np.array(srch_id_col)
 
 # %% [markdown]
 # ### Learn-to-rank with LGBMRanker
@@ -439,8 +437,13 @@ srch_id_col = np.array(srch_id_col)
 from sklearn.model_selection import GroupShuffleSplit
 
 # feature_encoded_X = encoded_X
-# Split data into 80% train and 20% validation, maintaining the groups however.
-train_inds, val_inds = next(GroupShuffleSplit(test_size=.20, n_splits=2, random_state = 7).split(feature_encoded_X, groups=srch_id_col))
+# Split data into (default) 80% train and 20% validation, maintaining the groups however.
+print("Going to split data now!")
+train_inds, val_inds = next(GroupShuffleSplit(
+    test_size=config.valid_size, 
+    n_splits=2, 
+    random_state = 7
+).split(feature_encoded_X, groups=srch_id_col))
 
 # Split train / validation by their indices
 X_train = feature_encoded_X[train_inds]
@@ -452,8 +455,10 @@ y_val = np.array(y[val_inds])
 query_train = get_user_groups_from_df(train_data.iloc[train_inds])
 query_val = get_user_groups_from_df(train_data.iloc[val_inds])
 
-# Remove srch_id
 print("Ready to rank!")
+
+# %%
+train_data['srch_id']
 
 # %%
 # Number of sanity checks
@@ -491,11 +496,15 @@ except:
     pass
 
 # %%
-import gc
-from guppy import hpy
-gc.collect()
-h=hpy()
-h.heap()
+# Garbage collection and show
+try:
+    import gc
+    from guppy import hpy
+    gc.collect()
+    h=hpy()
+    print(h.heap())
+except:
+    print("Unable to show heap, probably missing guppy")
 
 
 # %% [markdown]
