@@ -415,7 +415,7 @@ train_data.isna().any()
 # Utility functions
 
 # Gets the sizes of same search-id chunks.
-get_user_groups_from_df = lambda df: df.groupby('srch_id').size().tolist()
+get_user_groups_from_df = lambda df: df.groupby('srch_id', observed=True).size().tolist()
 
 # %%
 # Reassign `srch_id`
@@ -443,38 +443,36 @@ from sklearn.model_selection import GroupShuffleSplit
 train_inds, val_inds = next(GroupShuffleSplit(test_size=.20, n_splits=2, random_state = 7).split(feature_encoded_X, groups=srch_id_col))
 
 # Split train / validation by their indices
-df_X_train = feature_encoded_X[train_inds]
-y_train = y[train_inds]
-df_X_val = feature_encoded_X[val_inds]
-y_val = y[val_inds]
+X_train = feature_encoded_X[train_inds]
+y_train = np.array(y[train_inds])
+X_val = feature_encoded_X[val_inds]
+y_val = np.array(y[val_inds])
 
 # Get the groups related to `srch_id`
 query_train = get_user_groups_from_df(train_data.iloc[train_inds])
 query_val = get_user_groups_from_df(train_data.iloc[val_inds])
 
 # Remove srch_id
-# df_X_train.pop('srch_id')
-# df_X_val.pop('srch_id')
 print("Ready to rank!")
 
 # %%
-y_val
+# Number of sanity checks
+assert len(list(y_train)) == len(X_train), "Mismatch in sample-size between feature-length and labels for training"
+assert len(list(y_train)) == np.sum(query_train), "Mismatch in sample-size sum query-train and number of labels for training"
 
-# %%
-for column in feature_encoded_X:
-    print (column.dtype)
+assert len(list(y_val)) == len(X_val), "Mismatch in sample-size between feature-length and labels for validation"
+assert len(list(y_val)) == np.sum(query_val), "Mismatch in sample-size sum query-train and number of labels for validation"
 
-# %%
-#tidreassigning datatypes of x/y train/val (bool, np.array, to_list(), int) bugs gbm.fit
+# Ensure no 0's in query train
 
-
+assert (0 not in query_train), "There is a 0 in query train! This will crash your LightBGM!"
 
 # %%
 # We define our ranker (default parameters)
-gbm = lgb.LGBMRanker()
+gbm = lgb.LGBMRanker(n_jobs=1)
 
-gbm.fit(df_X_train, y_train, group=query_train,
-        eval_set=[(df_X_val, y_val)], eval_group=[query_val],
+gbm.fit(X_train, list(y_train), group=query_train,
+        eval_set=[(X_val, list(y_val))], eval_group=[query_val],
         eval_at=[5, 10, 20], early_stopping_rounds=50)
 
 # %%
@@ -487,7 +485,10 @@ ensure_path('storage/best_gbm.txt')
 gbm.booster_.save_model('storage/best_gbm.txt')
 
 # %%
-del train_data, encoded_X, feature_encoded_X, X_only
+try:
+    del train_data, encoded_X, feature_encoded_X, X_only
+except:
+    pass
 
 # %%
 import gc
