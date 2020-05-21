@@ -64,12 +64,15 @@ config = Config(
     nrows=1000,
     valid_size=0.2,
     pre_feature_selection=False,
+    algo_feature_selection=False,
     train_data_subset=0.8,
     classifier=SVC,
     classifier_dict={'C' : 1, 'kernel' : 'rbf', 'random_state' : 2},
     feature_selection=SelectFromModel,
     feature_selection_dict={'threshold' : 1},
-    dimensionality_reduc=True,
+    dimensionality_reduc_selection=True,
+    pre_selection_cols=['prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2', 
+                      'prop_log_historical_price', 'price_usd', 'srch_query_affinity_score', 'promotion_flag'],
     dimension_features=25,
     feature_engineering=True,  
     naive_imputing=True #todo faster method for averaging nan values if naive=False
@@ -172,6 +175,9 @@ numerical_cols = ['visitor_hist_starrating', 'visitor_hist_adr_usd',
 # When engineering we want to add them to either the numerical or categorical columnlist and append them to the dataframe
 
 # %%
+numerical_engineered = []
+categorical_engineered = []
+
 if config.feature_engineering:
     # Do some date feature engineering     
     time = pd.to_datetime(train_data['date_time'])
@@ -214,7 +220,6 @@ if config.feature_engineering:
 # If we engineer new features, we might want to remove their old columns from the dataframe and columnlists.
 
 # %%
-# Maybe we can do without removing them; we simply don't include them in `chosen_cols`.
 if config.feature_engineering:
     try:
         train_data = train_data.drop(columns=['date_time', 'visitor_location_country_id', 'prop_country_id', 
@@ -311,25 +316,25 @@ if not config.naive_imputing:
 
     train_data.isnull().sum()/len(train_data)
     
-if config.naive_imputing:
+# if config.naive_imputing:
     # Here we definehow we would like to encode
 
-    # For One-Hot Encoding
-    # Onehot encode the categorical variables
-    oh_impute = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=-2)
-    oh_encoder = OneHotEncoder(handle_unknown='ignore')
-    oh_pipeline = Pipeline([
-        ('impute', oh_impute),
-        ('encode', oh_encoder)
-    ])
+# For One-Hot Encoding
+# Onehot encode the categorical variables
+oh_impute = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=-2)
+oh_encoder = OneHotEncoder(handle_unknown='ignore')
+oh_pipeline = Pipeline([
+    ('impute', oh_impute),
+    ('encode', oh_encoder)
+])
 
-    # Encode the numerical values
-    num_impute = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=-1)
-    num_scale_encoder = StandardScaler()
-    num_pipeline = Pipeline([
-        ('impute', num_impute),
-        ('encode', num_scale_encoder)
-    ])
+# Encode the numerical values
+num_impute = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=-1)
+num_scale_encoder = StandardScaler()
+num_pipeline = Pipeline([
+    ('impute', num_impute),
+    ('encode', num_scale_encoder)
+])
 
 # %% [markdown]
 # ## Feature encoding
@@ -340,26 +345,32 @@ from sklearn.impute import SimpleImputer
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
+# %% [markdown]
+# In the next part, we decide on our final columns (`chosen_columns`) based on our initial config file, before we encode them.
+#
+# This consists of the following decisions:
+# - Pre-feature selection: Do we restrict ourselves to a select amount of features?
+# - Feature-engineering: Do we apply feature engineering and add it on top?
+# - Are these columns in our training data?
+
 # %%
+chosen_columns = categorical_cols + numerical_cols
+
 # Manual feature-selection
-# We do a preselection of columns that we feel will become useful features after encoding
 if config.pre_feature_selection:
-    chosen_columns = ['prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2', 
-                      'prop_log_historical_price', 'price_usd', 'srch_query_affinity_score',  'promotion_flag']
-    if config.feature_engineering:
-        chosen_columns = ['prop_starrating', 'prop_review_score', 'prop_mean_score', 'same_country_visitor_prop'
-                          'prop_log_historical_price', 'price_usd', 'srch_query_affinity_score',  'promotion_flag', 
-                          'month', 'viable_comp', 'year']
-else:
-    chosen_columns = categorical_cols + numerical_cols
+    chosen_columns = config.pre_selection_cols
+
+# Manual feature engineering
+if config.feature_engineering:
+    chosen_columns = [*chosen_columns, *categorical_engineered, *numerical_engineered]
 
 for column in categorical_cols:
     train_data[column]=train_data[column].astype('category')
-    
-    
+
+# Ensure only intersection of chosen columns and present columns are in data now
 chosen_columns = list(set(chosen_columns) & set(train_data.columns))
-# Select the chosen columns, and 
-# define the corresponding transformer's transformations to their columns
+
+# Split chosen columns into numerical and categorical
 chosen_oh_cols = list(set(chosen_columns) & set(categorical_cols))
 chosen_num_cols = list(set(chosen_columns) & set(numerical_cols))
 
@@ -388,27 +399,22 @@ y = X_only.pop('booking_bool')
 
 # %%
 ##### We apply feature selection using the model from our config
-if config.dimensionality_reduc:
+
+# Use PCA feature selection method
+if config.dimensionality_reduc_selection and not config.algo_feature_selection:
+    print("Applying feature selection using TruncatedSVD")
     pca = TruncatedSVD(n_components=config.dimension_features)
     feature_encoded_X = pca.fit_transform(encoded_X)
-else:
+
+# Use linear feature-selection methods
+if config.algo_feature_selection and not config.dimensionality_reduc_selection:
     classifier = config.classifier(**config.classifier_dict)
     feature_selector = config.feature_selection(classifier, **config.feature_selection_dict)
+    print(f"Applying feature selection using linear feature selection methods \n,"
+          f"{type(feature_selector).__name__}, using {type(feature_selector).__name__} as classifier.")
     feature_encoded_X = feature_selector.fit_transform(encoded_X, y)
     # TODO: support_ method might not work on every featureselector we choose, test this
     bool_vec = feature_selector.support_
-
-# %%
-train_data.isna().any()
-# Utility cell to investigate data elements
-# Data elements we have available
-# Encoded data:
-    # - df_encoded_X: Dataframe that contains the preprocessed features
-    # - encoded_X: numpy version of `encoded_df`
-# Original data:
-    # - train_data: training data, but cleaned up
-    # - X_only: `train_data` without `booking_bool`
-
 
 # %% [markdown]
 # # Training a model
