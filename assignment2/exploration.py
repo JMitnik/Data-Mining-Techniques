@@ -24,6 +24,8 @@ import sklearn as sk
 import pandas as pd
 import lightgbm as lgb
 import numpy as np
+
+# Sklearn imports
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import ExtraTreesClassifier
@@ -64,16 +66,18 @@ config = Config(
     path_to_eval_results='results/eval_results.csv',
     nrows=None,
     valid_size=0.2,
-    pre_feature_selection=False,
-    algo_feature_selection=False,
+    pre_feature_selection=True,
+    algo_feature_selection=True,
     train_data_subset=0.8,
     classifier=SVC,
     classifier_dict={'C' : 1, 'kernel' : 'rbf', 'random_state' : 2},
     feature_selection=SelectFromModel,
     feature_selection_dict={'threshold' : 1},
-    dimensionality_reduc_selection=True,
-    pre_selection_cols=['prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2', 
-                      'prop_log_historical_price', 'price_usd', 'srch_query_affinity_score', 'promotion_flag'],
+    dimensionality_reduc_selection=False,
+    pre_selection_cols=[
+        'srch_saturday_night_bool', 'prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2', 
+        'prop_log_historical_price', 'price_usd', 'srch_query_affinity_score', 'promotion_flag'
+    ],
     dimension_features=25,
     feature_engineering=True,  
     naive_imputing=True #todo faster method for averaging nan values if naive=False
