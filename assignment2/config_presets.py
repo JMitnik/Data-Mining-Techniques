@@ -40,7 +40,7 @@ numerical_config = Config(
 )
 
 # Categorical-no-propId
-numerical_config = Config(
+categorical_no_propid_config = Config(
     label='Categorical-no-propId',
     nrows=None,
     valid_size=0.2,
