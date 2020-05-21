@@ -11,9 +11,27 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.decomposition import PCA, TruncatedSVD
 
+all_numerical_columns = [        'prop_mean_score', 'price_usd', 'visitor_hist_adr_usd',
+        'prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2',
+        'prop_log_historical_price',
+        'srch_length_of_stay', 'srch_booking_window',
+        'srch_adults_count', 'srch_children_count',
+        'srch_room_count', 'srch_query_affinity_score',
+        'orig_destination_distance']
+
+categorical_somewhat_high_freq = ['srch_destination_id']
+
+categorical_mid_freq = [
+    'visitor_location_country_id', 'prop_country_id', 'site_id'
+]
+
+categorical_low_freq = [
+    'random_bool', 'srch_saturday_night_bool', 'promotion_flag', 'prop_brand_bool'
+]
+
 # Numerical-only
 numerical_config = Config(
-    label='AllNumerical',
+    label='NumericalFiltered',
     nrows=None,
     valid_size=0.2,
     pre_feature_selection=True,
@@ -25,15 +43,7 @@ numerical_config = Config(
     feature_selection_scoring_func=mutual_info_classif,
     feature_selection_dict={'k' : 10},
     dimensionality_reduc_selection=False,
-    pre_selection_cols=[
-        'visitor_hist_starrating', 'visitor_hist_adr_usd',
-        'prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2',
-        'prop_log_historical_price', 'price_usd',
-        'srch_length_of_stay', 'srch_booking_window',
-        'srch_adults_count', 'srch_children_count',
-        'srch_room_count', 'srch_query_affinity_score',
-        'orig_destination_distance'
-    ],
+    pre_selection_cols=[*all_numerical_columns],
     dimension_features=25,
     feature_engineering=True,
     path_to_eval_results='results/eval_results.csv',
@@ -42,7 +52,7 @@ numerical_config = Config(
 
 # Categorical-no-propId
 categorical_no_propid_config = Config(
-    label='Categorical-no-propId',
+    label='CategoricalLowMid',
     nrows=None,
     valid_size=0.2,
     pre_feature_selection=True,
@@ -53,12 +63,7 @@ categorical_no_propid_config = Config(
     feature_selection=SelectKBest,
     feature_selection_dict={'threshold' : 1},
     dimensionality_reduc_selection=False,
-    pre_selection_cols=[
-        'site_id', 'visitor_location_country_id', 'prop_country_id',
-        'prop_brand_bool', 'promotion_flag', 'position',
-        'srch_destination_id', 'srch_saturday_night_bool', 'random_bool',
-        'click_bool', 'booking_bool'
-    ],
+    pre_selection_cols=[*categorical_low_freq, *categorical_mid_freq],
     dimension_features=25,
     feature_engineering=True,
     path_to_eval_results='results/eval_results.csv',

@@ -174,6 +174,19 @@ numerical_cols = ['visitor_hist_starrating', 'visitor_hist_adr_usd',
                   'orig_destination_distance', 'gross_bookings_usd'
                   ]
 
+# %%
+# Plot number of unique values for categorical
+import matplotlib.pyplot as plt
+
+# Plot frequencies
+np.log(train_data.loc[:, categorical_cols].nunique()).sort_values().plot(kind='barh')
+plt.title('Logarithmic Frequency of categorical features')
+plt.xlabel('Logarithmic frequency')
+plt.show()
+
+# %%
+train_data[categorical_cols]
+
 # %% [markdown]
 # # Feature Preprocessing
 # ---
