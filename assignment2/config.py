@@ -1,6 +1,6 @@
 from dataclasses import dataclass, asdict, field
 import json
-from typing import Any, List
+from typing import Any, List, Optional
 
 @dataclass
 class Config:
@@ -19,8 +19,12 @@ class Config:
     feature_engineering: bool
     naive_imputing: bool
     valid_size: float
+    feature_selection_scoring_func: Optional[any] = None
     pre_selection_cols: List[str] = field(default_factory=list)
     most_important_metric: str = 'ndcg_10'
+
+    # Mutable properties
+    mutable_feature_importances_from_learner: List[str] = None
 
     def to_dict(self):
         config_dict = asdict(self)

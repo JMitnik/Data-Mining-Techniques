@@ -3,7 +3,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.linear_model import Lasso, RidgeClassifier, LogisticRegression
-from sklearn.feature_selection import SelectFromModel, SelectKBest, RFE
+from sklearn.feature_selection import SelectFromModel, SelectKBest, RFE, mutual_info_classif
 from sklearn.datasets import load_iris
 from sklearn.svm import LinearSVC, SVC
 from sklearn.impute import SimpleImputer
@@ -17,12 +17,13 @@ numerical_config = Config(
     nrows=None,
     valid_size=0.2,
     pre_feature_selection=True,
-    algo_feature_selection=True,
+    algo_feature_selection=False,
     train_data_subset=0.8,
-    classifier=SVC,
+    classifier=None,
     classifier_dict={'C' : 1, 'kernel' : 'rbf', 'random_state' : 2},
-    feature_selection=SelectFromModel,
-    feature_selection_dict={'threshold' : 1},
+    feature_selection=SelectKBest,
+    feature_selection_scoring_func=mutual_info_classif,
+    feature_selection_dict={'k' : 10},
     dimensionality_reduc_selection=False,
     pre_selection_cols=[
         'visitor_hist_starrating', 'visitor_hist_adr_usd',
@@ -31,7 +32,7 @@ numerical_config = Config(
         'srch_length_of_stay', 'srch_booking_window',
         'srch_adults_count', 'srch_children_count',
         'srch_room_count', 'srch_query_affinity_score',
-        'orig_destination_distance', 'gross_bookings_usd'
+        'orig_destination_distance'
     ],
     dimension_features=25,
     feature_engineering=True,
@@ -45,11 +46,11 @@ categorical_no_propid_config = Config(
     nrows=None,
     valid_size=0.2,
     pre_feature_selection=True,
-    algo_feature_selection=True,
+    algo_feature_selection=False,
     train_data_subset=0.8,
-    classifier=SVC,
+    classifier=None,
     classifier_dict={'C' : 1, 'kernel' : 'rbf', 'random_state' : 2},
-    feature_selection=SelectFromModel,
+    feature_selection=SelectKBest,
     feature_selection_dict={'threshold' : 1},
     dimensionality_reduc_selection=False,
     pre_selection_cols=[

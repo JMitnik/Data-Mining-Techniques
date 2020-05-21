@@ -59,29 +59,34 @@ import importlib
 import config
 importlib.reload(config)
 from config import Config
+import config_presets
+importlib.reload(config_presets)
+from config_presets import numerical_config
 
 # Config Settings
-config = Config(
-    label='TrialAndError',
-    path_to_eval_results='results/eval_results.csv',
-    nrows=None,
-    valid_size=0.2,
-    pre_feature_selection=True,
-    algo_feature_selection=True,
-    train_data_subset=0.8,
-    classifier=SVC,
-    classifier_dict={'C' : 1, 'kernel' : 'rbf', 'random_state' : 2},
-    feature_selection=SelectFromModel,
-    feature_selection_dict={'threshold' : 1},
-    dimensionality_reduc_selection=False,
-    pre_selection_cols=[
-        'srch_saturday_night_bool', 'prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2', 
-        'prop_log_historical_price', 'price_usd', 'srch_query_affinity_score', 'promotion_flag'
-    ],
-    dimension_features=25,
-    feature_engineering=True,  
-    naive_imputing=True #todo faster method for averaging nan values if naive=False
-)
+# config = Config(
+#     label='TrialAndError',
+#     path_to_eval_results='results/eval_results.csv',
+#     nrows=None,
+#     valid_size=0.2,
+#     pre_feature_selection=True,
+#     algo_feature_selection=True,
+#     train_data_subset=0.8,
+#     classifier=SVC,
+#     classifier_dict={'C' : 1, 'kernel' : 'rbf', 'random_state' : 2},
+#     feature_selection=SelectFromModel,
+#     feature_selection_dict={'threshold' : 1},
+#     dimensionality_reduc_selection=False,
+#     pre_selection_cols=[
+#         'srch_saturday_night_bool', 'prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2', 
+#         'prop_log_historical_price', 'price_usd', 'srch_query_affinity_score', 'promotion_flag'
+#     ],
+#     dimension_features=25,
+#     feature_engineering=True,  
+#     naive_imputing=True #todo faster method for averaging nan values if naive=False
+# )
+
+config = numerical_config
 
 # %%
 if config.nrows is not None:
@@ -409,23 +414,37 @@ X_only = train_data.copy()
 y = X_only.pop('booking_bool')
 
 # %%
+bool_vec = np.ones(encoded_X.shape[1], dtype=bool)
+
+# %%
 ##### We apply feature selection using the model from our config
 
 # Use PCA feature selection method
 if config.dimensionality_reduc_selection and not config.algo_feature_selection:
     print("Applying feature selection using TruncatedSVD")
     pca = TruncatedSVD(n_components=config.dimension_features)
-    feature_encoded_X = pca.fit_transform(encoded_X)
+    encoded_X = pca.fit_transform(encoded_X)
 
 # Use linear feature-selection methods
 if config.algo_feature_selection and not config.dimensionality_reduc_selection:
-    classifier = config.classifier(**config.classifier_dict)
-    feature_selector = config.feature_selection(classifier, **config.feature_selection_dict)
-    print(f"Applying feature selection using linear feature selection methods \n,"
-          f"{type(feature_selector).__name__}, using {type(feature_selector).__name__} as classifier.")
-    feature_encoded_X = feature_selector.fit_transform(encoded_X, y)
-    # TODO: support_ method might not work on every featureselector we choose, test this
-    bool_vec = feature_selector.support_
+    # If classifier is not None, we use a classifier as feature-selection helper     
+    if config.classifier is not None:    
+        classifier = config.classifier(**config.classifier_dict)
+        feature_selector = config.feature_selection(classifier, **config.feature_selection_dict)
+        print(f"Applying feature selection using linear feature selection methods \n,"f"{type(feature_selector).__name__}, using {type(classifier).__name__} as classifier.")
+        feature_encoded_X = feature_selector.fit_transform(encoded_X, y)
+        bool_vec = feature_selector.support_
+        
+    # Else we use a feature scoring method
+    else:
+        scoring_func = config.feature_selection_scoring_func
+        feature_selector = config.feature_selection(scoring_func, **config.feature_selection_dict)
+        encoded_X = feature_selector.fit_transform(encoded_X, y)
+        bool_vec = feature_selector.get_support()
+
+
+# %%
+assert encoded_X.shape[1] == len(bool_vec), "Bool vec mismatch with encoded shape"
 
 # %% [markdown]
 # # Training a model
@@ -460,14 +479,14 @@ train_inds, val_inds = next(GroupShuffleSplit(
     test_size=config.valid_size, 
     n_splits=2, 
     random_state = 7
-).split(feature_encoded_X, groups=srch_id_col))
+).split(encoded_X, groups=srch_id_col))
 
 print(f"Will train with {len(train_inds)} and validate with {len(val_inds)} amount of data.")
 
 # Split train / validation by their indices
-X_train = feature_encoded_X[train_inds]
+X_train = encoded_X[train_inds]
 y_train = np.array(y[train_inds])
-X_val = feature_encoded_X[val_inds]
+X_val = encoded_X[val_inds]
 y_val = np.array(y[val_inds])
 
 # Get the groups related to `srch_id`
@@ -489,25 +508,41 @@ assert len(list(y_val)) == np.sum(query_val), "Mismatch in sample-size sum query
 assert (0 not in query_train), "There is a 0 in query train! This will crash your LightBGM!"
 
 # %%
-config.feature_selection.__name__
-
-# %%
 import lightgbm as lgb
-lgb.record_evaluation(dict)
 
 # %%
 # We define our ranker (default parameters)
 eval_results = []
-gbm = lgb.LGBMRanker(n_jobs=1)
+gbm = lgb.LGBMRanker(n_estimators=500)
 
 def store_results(results):
     callb = lgb.print_evaluation(dict)
     eval_results.append(results.evaluation_result_list)
     return callb    
 
-gbm.fit(X_train, list(y_train), callbacks=[store_results],group=query_train,
-        eval_set=[(X_val, list(y_val))], eval_group=[query_val],
+gbm.fit(X_train, y_train, callbacks=[store_results],group=query_train,
+        eval_set=[(X_val, y_val)], eval_group=[query_val],
         eval_at=[5, 10, 20], early_stopping_rounds=50)
+
+# %%
+import json
+
+# Extract feature importances, normalize them, and store them in the config
+feature_importances = gbm.feature_importances_
+feature_importances_norm = np.linalg.norm(feature_importances)
+feature_importances_normalized = (feature_importances / feature_importances_norm)
+
+# Sort the features and get their names
+ranking_features_idx = feature_importances_normalized.argsort()[::-1]
+feature_importances_normalized_sorted = feature_importances_normalized[ranking_features_idx]
+feature_names = np.array(encoded_columns)[ranking_features_idx]
+
+# Combine features with the names
+features_by_score = list(zip(feature_names, feature_importances_normalized_sorted))
+
+print(f"Best features by score!: \n {features_by_score}")
+# Store it in the config
+config.mutable_feature_importances_from_learner = json.dumps(features_by_score)
 
 # %%
 import os
@@ -534,8 +569,10 @@ df_eval_results = df_eval_results.set_index('timestamp_end')
 if not os.path.isfile(config.path_to_eval_results):
     ensure_path(config.path_to_eval_results)
     df_eval_results.to_csv(config.path_to_eval_results)
+    print("Saved new file!")
 else: # else it exists so append without writing the header
     df_eval_results.to_csv(config.path_to_eval_results, mode='a', header=False)
+    print("Saved by appending!")
 
 # %%
 # Save model
