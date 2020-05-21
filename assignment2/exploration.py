@@ -61,7 +61,8 @@ from config import Config
 # Config Settings
 config = Config(
     label='TrialAndError',
-    nrows=1000,
+    path_to_eval_results='results/eval_results.csv',
+    nrows=None,
     valid_size=0.2,
     pre_feature_selection=False,
     algo_feature_selection=False,
@@ -208,7 +209,7 @@ if config.feature_engineering:
     
     # Add categorical features to our list of categorical columns     
     categorical_engineered = ['same_country_visitor_prop', 'viable_comp']
-    for col in numerical_engineered:
+    for col in categorical_engineered:
         categorical_cols.append(col)
         
     # Add numerical features to our list of numerical columns     
@@ -358,10 +359,12 @@ chosen_columns = categorical_cols + numerical_cols
 
 # Manual feature-selection
 if config.pre_feature_selection:
+    print("Setting pre feature selection")
     chosen_columns = config.pre_selection_cols
 
 # Manual feature engineering
 if config.feature_engineering:
+    print("Including feature engineering")
     chosen_columns = [*chosen_columns, *categorical_engineered, *numerical_engineered]
 
 for column in categorical_cols:
@@ -373,6 +376,10 @@ chosen_columns = list(set(chosen_columns) & set(train_data.columns))
 # Split chosen columns into numerical and categorical
 chosen_oh_cols = list(set(chosen_columns) & set(categorical_cols))
 chosen_num_cols = list(set(chosen_columns) & set(numerical_cols))
+
+print(f"We have {len(chosen_columns)} columns now!")
+print(f"\t Out of those, {len(chosen_oh_cols)} are categorical now!")
+print(f"\t Out of those, {len(chosen_num_cols)} are numerical now!")
 
 # %%
 chosen_train_data = train_data[chosen_columns]
@@ -451,6 +458,8 @@ train_inds, val_inds = next(GroupShuffleSplit(
     random_state = 7
 ).split(feature_encoded_X, groups=srch_id_col))
 
+print(f"Will train with {len(train_inds)} and validate with {len(val_inds)} amount of data.")
+
 # Split train / validation by their indices
 X_train = feature_encoded_X[train_inds]
 y_train = np.array(y[train_inds])
@@ -462,9 +471,6 @@ query_train = get_user_groups_from_df(train_data.iloc[train_inds])
 query_val = get_user_groups_from_df(train_data.iloc[val_inds])
 
 print("Ready to rank!")
-
-# %%
-train_data['srch_id']
 
 # %%
 # Number of sanity checks
@@ -479,18 +485,56 @@ assert len(list(y_val)) == np.sum(query_val), "Mismatch in sample-size sum query
 assert (0 not in query_train), "There is a 0 in query train! This will crash your LightBGM!"
 
 # %%
+config.feature_selection.__name__
+
+# %%
+import lightgbm as lgb
+lgb.record_evaluation(dict)
+
+# %%
 # We define our ranker (default parameters)
+eval_results = []
 gbm = lgb.LGBMRanker(n_jobs=1)
 
-gbm.fit(X_train, list(y_train), group=query_train,
+def store_results(results):
+    callb = lgb.print_evaluation(dict)
+    eval_results.append(results.evaluation_result_list)
+    return callb    
+
+gbm.fit(X_train, list(y_train), callbacks=[store_results],group=query_train,
         eval_set=[(X_val, list(y_val))], eval_group=[query_val],
         eval_at=[5, 10, 20], early_stopping_rounds=50)
 
 # %%
-# Save model
 import os
 def ensure_path(path_to_file):
     os.makedirs(os.path.dirname(path_to_file), exist_ok=True)
+
+
+# %%
+# Get validation performance metrics and store along with config.
+import datetime
+now = datetime.datetime.now()
+
+eval_results_reformatted = {
+    'valid_ndcg_5': [i[0][2]for i in eval_results],
+    'valid_ndcg_10': [i[1][2] for i in eval_results],
+    'valid_ndcg_20': [i[2][2] for i in eval_results],
+}
+
+df_eval_results = pd.DataFrame.from_dict({**eval_results_reformatted, **config.to_dict()})
+df_eval_results['timestamp_end'] = now
+df_eval_results = df_eval_results.set_index('timestamp_end')
+
+# Save results
+if not os.path.isfile(config.path_to_eval_results):
+    ensure_path(config.path_to_eval_results)
+    df_eval_results.to_csv(config.path_to_eval_results)
+else: # else it exists so append without writing the header
+    df_eval_results.to_csv(config.path_to_eval_results, mode='a', header=False)
+
+# %%
+# Save model
 
 ensure_path('storage/best_gbm.txt')
 gbm.booster_.save_model('storage/best_gbm.txt')
