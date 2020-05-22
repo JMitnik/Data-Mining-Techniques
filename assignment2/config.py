@@ -21,6 +21,7 @@ class Config:
     valid_size: float
     training_target: str = 'booking_bool_only'
     feature_selection_scoring_func: Optional[any] = None
+    remove_null_features_early: bool = False
     pre_selection_cols: List[str] = field(default_factory=list)
     most_important_metric: str = 'ndcg_10'
     drop_na_cols: bool = False

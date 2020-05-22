@@ -54,3 +54,24 @@ all_numerical_config = Config(
     path_to_eval_results='results/eval_results_2.csv',
     naive_imputing=True #todo faster method for averaging nan values if naive=False
 )
+
+all_numerical_early_nana_removal_config = Config(
+    label='AllNumericalEarlyNANRemoveRun',
+    nrows=None,
+    valid_size=0.2,
+    pre_feature_selection=True,
+    algo_feature_selection=False,
+    train_data_subset=0.8,
+    classifier=None,
+    classifier_dict={'C' : 1, 'kernel' : 'rbf', 'random_state' : 2},
+    feature_selection=SelectKBest,
+    feature_selection_scoring_func=mutual_info_classif,
+    feature_selection_dict={'k' : 10},
+    dimensionality_reduc_selection=False,
+    pre_selection_cols=[*all_numerical_columns],
+    dimension_features=25,
+    feature_engineering=True,
+    remove_null_features_early=True,
+    path_to_eval_results='results/eval_results_2.csv',
+    naive_imputing=True #todo faster method for averaging nan values if naive=False
+)

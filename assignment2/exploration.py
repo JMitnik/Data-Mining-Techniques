@@ -173,8 +173,6 @@ plt.show()
 # %%
 train_data[numerical_cols].boxplot()
 
-# %%
-
 # %% [markdown]
 # # Feature Pnumerical_cols--
 
@@ -263,6 +261,11 @@ if config.feature_engineering:
 # If we engineer new features, we might want to remove their old columns from the dataframe and columnlists.
 
 # %%
+if config.remove_null_features_early:
+    print("\t Removing null features early!")
+    train_data = remove_null_features_early(train_data, 0.5)
+
+# %%
 if config.feature_engineering:
     try:
         train_data = train_data.drop(columns=['date_time', 'visitor_location_country_id', 'prop_country_id',
@@ -293,6 +296,10 @@ na_cols = train_data.isna().any()
 nan_cols = train_data.columns[na_cols]
 print("\tThese are columns with NaN:")
 print(nan_cols.to_list())
+
+# %%
+from utils import remove_null_features
+remove_null_features(train_data, 0.5).shape
 
 # %% [markdown]
 # Aside from `comp{i}_rate` and `comp2_inv`, all of these columns are numerical features. We could, initially,
@@ -331,11 +338,10 @@ if config.naive_imputing:
 
 # %%
 #remove columns with over 50% nans
+from utils import remove_null_features
+                
 if not config.naive_imputing:
-    print("\tWe will remove null values larger than 0.5")
-    for column in train_data.columns:
-        if train_data[column].isnull().sum()/len(train_data) > 0.5:
-            train_data = train_data.drop(columns=column, axis=1)
+    train_data = remove_null_features(train_data, 0.5)
 
 train_data.isnull().sum()/len(train_data)
 
