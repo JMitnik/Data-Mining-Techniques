@@ -20,6 +20,11 @@ all_numerical_columns = [
         'srch_room_count', 'srch_query_affinity_score',
         'orig_destination_distance']
 
+all_categorical = ['date_time', 'site_id', 'visitor_location_country_id', 'prop_country_id',
+    'prop_id', 'prop_brand_bool', 'promotion_flag',
+    'srch_destination_id', 'srch_saturday_night_bool', 'random_bool',
+]
+
 best_numerical_columns = [
     'prop_mean_score', 'price_usd', 'prop_log_historical_price', 'prop_starrating', 'prop_review_score',
     'srch_query_affinity_score', 'orig_destination_distance', 'srch_booking_window'
@@ -71,6 +76,48 @@ all_numerical_early_nana_removal_config = Config(
     pre_selection_cols=[*all_numerical_columns],
     dimension_features=25,
     feature_engineering=True,
+    remove_null_features_early=True,
+    path_to_eval_results='results/eval_results_2.csv',
+    naive_imputing=True #todo faster method for averaging nan values if naive=False
+)
+
+all_numerical_and_categorical_early_nana_removal_config = Config(
+    label='AllNumericalAndAllCategoricalEarlyNANRemoveRun',
+    nrows=None,
+    valid_size=0.2,
+    pre_feature_selection=True,
+    algo_feature_selection=False,
+    train_data_subset=0.8,
+    classifier=None,
+    classifier_dict={'C' : 1, 'kernel' : 'rbf', 'random_state' : 2},
+    feature_selection=SelectKBest,
+    feature_selection_scoring_func=mutual_info_classif,
+    feature_selection_dict={'k' : 10},
+    dimensionality_reduc_selection=False,
+    pre_selection_cols=[*all_numerical_columns, *all_categorical],
+    dimension_features=25,
+    feature_engineering=True,
+    remove_null_features_early=True,
+    path_to_eval_results='results/eval_results_2.csv',
+    naive_imputing=True #todo faster method for averaging nan values if naive=False
+)
+
+no_engineer_all_numerical_and_categorical_early_nana_removal_config = Config(
+    label='NoEngineeringAllNumericalAndAllCategoricalEarlyNANRemoveRun',
+    nrows=None,
+    valid_size=0.2,
+    pre_feature_selection=True,
+    algo_feature_selection=False,
+    train_data_subset=0.8,
+    classifier=None,
+    classifier_dict={'C' : 1, 'kernel' : 'rbf', 'random_state' : 2},
+    feature_selection=SelectKBest,
+    feature_selection_scoring_func=mutual_info_classif,
+    feature_selection_dict={'k' : 10},
+    dimensionality_reduc_selection=False,
+    pre_selection_cols=[*all_numerical_columns, *all_categorical],
+    dimension_features=25,
+    feature_engineering=False,
     remove_null_features_early=True,
     path_to_eval_results='results/eval_results_2.csv',
     naive_imputing=True #todo faster method for averaging nan values if naive=False

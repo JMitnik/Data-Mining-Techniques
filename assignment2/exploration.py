@@ -62,10 +62,11 @@ importlib.reload(config)
 from config import Config
 import config_presets
 importlib.reload(config_presets)
-from config_presets import all_numerical_config
+from config_presets import all_numerical_config, all_numerical_early_nana_removal_config, no_engineer_all_numerical_and_categorical_early_nana_removal_config
 
 # Config Settings
-config = all_numerical_config
+config = no_engineer_all_numerical_and_categorical_early_nana_removal_config
+print(f"Config ran with label is {config.label}")
 
 # %%
 if config.nrows is not None:
@@ -173,6 +174,49 @@ plt.show()
 # %%
 train_data[numerical_cols].boxplot()
 
+# %%
+train_data_correlations = train_data.corr()
+
+# %%
+import seaborn as sns
+ax = sns.heatmap(
+    train_data_correlations,
+    vmin=-1,
+    vmax=1,
+    center=0,
+    cmap=sns.diverging_palette(20, 220, n=200),
+#     square=True
+)
+
+ax.set_xticklabels(
+    ax.get_xticklabels(),
+    rotation=45,
+    horizontalalignment='right'
+);
+
+# %%
+from utils import remove_null_features
+train_data_correlations_without_null = remove_null_features(train_data).corr()
+
+# %%
+sns.set(rc={'figure.figsize':(11.7,8.27)})
+
+ax = sns.heatmap(
+    train_data_correlations_without_null,
+    vmin=-1,
+    vmax=1,
+    center=0,
+    yticklabels=True,
+    cmap=sns.diverging_palette(20, 220, n=200),
+#     square=True
+)
+
+ax.set_xticklabels(
+    ax.get_xticklabels(),
+    rotation=45,
+    horizontalalignment='right'
+);
+
 # %% [markdown]
 # # Feature Pnumerical_cols--
 
@@ -261,9 +305,11 @@ if config.feature_engineering:
 # If we engineer new features, we might want to remove their old columns from the dataframe and columnlists.
 
 # %%
+from utils import remove_null_features
+
 if config.remove_null_features_early:
     print("\t Removing null features early!")
-    train_data = remove_null_features_early(train_data, 0.5)
+    train_data = remove_null_features(train_data, 0.5)
 
 # %%
 if config.feature_engineering:
@@ -296,10 +342,6 @@ na_cols = train_data.isna().any()
 nan_cols = train_data.columns[na_cols]
 print("\tThese are columns with NaN:")
 print(nan_cols.to_list())
-
-# %%
-from utils import remove_null_features
-remove_null_features(train_data, 0.5).shape
 
 # %% [markdown]
 # Aside from `comp{i}_rate` and `comp2_inv`, all of these columns are numerical features. We could, initially,
