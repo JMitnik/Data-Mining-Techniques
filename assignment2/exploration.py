@@ -715,46 +715,6 @@ print(f"Test data now shaped like {X_test.shape}")
 
 
 # %% [markdown]
-# #### Predicting on a per-group basis: slow as hell (skip section for faster method)
-
-# %%
-# # Split test-data into groups based on the original data
-# groups = df_test_data.groupby('srch_id').indices
-# groups_by_idxs = list(groups.values())
-# print (groups_by_idxs)
-
-# %%
-# Predictions
-def predict_for_group(X_test, group_idxs, df_test_data):
-    # Use gbm to predict
-    X_test_group = X_test[group_idxs]
-    preds = gbm.predict(X_test_group)
-    preds = preds.argsort()[::-1] # Reverses
-
-    # Get th
-    pred_idxs = group_idxs[preds]
-    pred_props = df_test_data.loc[pred_idxs, ['srch_id', 'prop_id']]
-
-    return pred_props
-
-# %%
-# Doing it on a 'per-group basis'
-# Commented because it is slow.
-# # Perform the prediction (Can take a while, shitton of predictions)
-# result = []
-
-# for i, idx_group in enumerate(groups_by_idxs):
-#     preds = predict_for_group(X_test, idx_group, df_test_data)
-#     result.append(preds)
-
-#     if i % 10000 == 0:
-#         print(f"Doing group {i + 1} / {len(groups_by_idxs)} now")
-
-
-# %%
-# len(result)
-
-# %% [markdown]
 # #### Predicting all at once: More performant
 
 # %%
@@ -762,9 +722,6 @@ pred_all = gbm.predict(X_test)
 df_test_data['pred'] = pred_all
 
 print("\t Finished prediction!")
-
-# %%
-pred_all
 
 # %%
 # Sort predictions based on srch_id and pred
