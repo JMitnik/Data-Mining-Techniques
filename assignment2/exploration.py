@@ -62,10 +62,10 @@ importlib.reload(config)
 from config import Config
 import config_presets
 importlib.reload(config_presets)
-from config_presets import all_numerical_config, all_numerical_early_nana_removal_config, no_engineer_all_numerical_and_categorical_early_nana_removal_config
+from config_presets import all_numerical_config, all_numerical_early_nana_removal_config, no_engineer_all_numerical_and_nocrazycategorical_early_nana_removal_config, no_engineer_all_numerical_and_early_nana_removal_config, pca25_no_engineer_all_numerical_and_early_nana_removal_config, pca4_no_engineer_all_numerical_and_early_nana_removal_config
 
 # Config Settings
-config = no_engineer_all_numerical_and_categorical_early_nana_removal_config
+config = pca4_no_engineer_all_numerical_and_early_nana_removal_config
 print(f"Config ran with label is {config.label}")
 
 # %%
@@ -558,7 +558,8 @@ if config.algo_feature_selection and not config.dimensionality_reduc_selection:
 
 
 # %%
-assert encoded_X.shape[1] == len(bool_vec), "Bool vec mismatch with encoded shape"
+if not config.dimensionality_reduc_selection:
+    assert encoded_X.shape[1] == len(bool_vec), "Bool vec mismatch with encoded shape"
 
 # %% [markdown]
 # # Training a model
@@ -660,22 +661,26 @@ import json
 
 print("\t Finished training!")
 
-# Extract feature importances, normalize them, and store them in the config
-feature_importances = gbm.feature_importances_
-feature_importances_norm = np.linalg.norm(feature_importances)
-feature_importances_normalized = (feature_importances / feature_importances_norm)
+try:
+    if not config.dimensionality_reduc_selection:
+        # Extract feature importances, normalize them, and store them in the config
+        feature_importances = gbm.feature_importances_
+        feature_importances_norm = np.linalg.norm(feature_importances)
+        feature_importances_normalized = (feature_importances / feature_importances_norm)
 
-# Sort the features and get their names
-ranking_features_idx = feature_importances_normalized.argsort()[::-1]
-feature_importances_normalized_sorted = feature_importances_normalized[ranking_features_idx]
-feature_names = np.array(encoded_columns)[ranking_features_idx]
+        # Sort the features and get their names
+        ranking_features_idx = feature_importances_normalized.argsort()[::-1]
+        feature_importances_normalized_sorted = feature_importances_normalized[ranking_features_idx]
+        feature_names = np.array(encoded_columns)[ranking_features_idx]
 
-# Combine features with the names
-features_by_score = list(zip(feature_names, feature_importances_normalized_sorted))[:10]
+        # Combine features with the names
+        features_by_score = list(zip(feature_names, feature_importances_normalized_sorted))[:10]
 
-print(f"Best features by score!: \n {features_by_score}")
-# Store it in the config
-config.mutable_feature_importances_from_learner = json.dumps(features_by_score)
+        print(f"Best features by score!: \n {features_by_score}")
+        # Store it in the config
+        config.mutable_feature_importances_from_learner = json.dumps(features_by_score)
+except:
+    print("We were unable to get features using this technique; maybe feature selection is a problem?")
 
 # %%
 import os
