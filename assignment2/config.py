@@ -19,9 +19,11 @@ class Config:
     feature_engineering: bool
     naive_imputing: bool
     valid_size: float
+    training_target: str = 'booking_bool_only'
     feature_selection_scoring_func: Optional[any] = None
     pre_selection_cols: List[str] = field(default_factory=list)
     most_important_metric: str = 'ndcg_10'
+    drop_na_cols: bool = False
 
     # Mutable properties
     mutable_feature_importances_from_learner: List[str] = None

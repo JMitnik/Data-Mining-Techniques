@@ -2,3 +2,5 @@ data
 .ipynb_checkpoints
 *.ipynb
 results
+__pycache__
+storage

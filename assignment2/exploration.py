@@ -46,9 +46,9 @@ from sklearn.decomposition import PCA, TruncatedSVD
 #
 # classifiers: (SVC, linearSVC, RidgeClassifier)
 #     - SVC params: C (0-1), kernel (rbf, linear, poly), max_iter (-1, int), random_state (int)
-#     - linearSVC params: C (0-1), penalty (l1, l2), max_iter (1000, int), random_state (int) 
-#     - RidgeClassifier params: max_iter (1000, int), random_state (int) 
-#     
+#     - linearSVC params: C (0-1), penalty (l1, l2), max_iter (1000, int), random_state (int)
+#     - RidgeClassifier params: max_iter (1000, int), random_state (int)
+#
 # feature_selection: (SelectFromModel, SelectKBest, RFE)
 #     - SelectFromModel params: threshold (0-int), max_features (0-int)
 #     - SelectKBest params: threshold (0-int), k (0-int)
@@ -57,45 +57,28 @@ from sklearn.decomposition import PCA, TruncatedSVD
 # %%
 import importlib
 import config
+from args import ARGS
 importlib.reload(config)
 from config import Config
 import config_presets
 importlib.reload(config_presets)
-from config_presets import numerical_config
+from config_presets import all_numerical_config
 
 # Config Settings
-# config = Config(
-#     label='TrialAndError',
-#     path_to_eval_results='results/eval_results.csv',
-#     nrows=None,
-#     valid_size=0.2,
-#     pre_feature_selection=True,
-#     algo_feature_selection=True,
-#     train_data_subset=0.8,
-#     classifier=SVC,
-#     classifier_dict={'C' : 1, 'kernel' : 'rbf', 'random_state' : 2},
-#     feature_selection=SelectFromModel,
-#     feature_selection_dict={'threshold' : 1},
-#     dimensionality_reduc_selection=False,
-#     pre_selection_cols=[
-#         'srch_saturday_night_bool', 'prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2', 
-#         'prop_log_historical_price', 'price_usd', 'srch_query_affinity_score', 'promotion_flag'
-#     ],
-#     dimension_features=25,
-#     feature_engineering=True,  
-#     naive_imputing=True #todo faster method for averaging nan values if naive=False
-# )
-
-config = numerical_config
+config = all_numerical_config
 
 # %%
 if config.nrows is not None:
+    print(f"Reading data using {config.nrows} rows")
     train_data = pd.read_csv('data/training_set_VU_DM.csv', nrows=config.nrows)
 else:
+    print(f"Reading all data")
     train_data = pd.read_csv('data/training_set_VU_DM.csv')
 
     original_columns = train_data.columns
 train_data.head(5) # Show top 5
+
+print(f"We read train-data with shape {train_data.shape}")
 
 # %% [markdown]
 # # Manual Column exploration
@@ -127,7 +110,7 @@ train_data.head(5) # Show top 5
 # User-specific
 # - `visitor_hist_starrating`: average of previous stars of associated user
 # - `visitor_hist_adr_usd`: average price per night of hotels of associated user
-# - `srch_length_of_stay`: number of nights stays **searched** 
+# - `srch_length_of_stay`: number of nights stays **searched**
 # - `srch_booking_window`: number of days ahead the start of booking window **searched**
 # - `srch_adults_count`: number of adults **searched**
 # - `srch_children_count`: number of children **searched**
@@ -163,16 +146,19 @@ train_data.head(5) # Show top 5
 categorical_cols = ['srch_id', 'date_time', 'site_id', 'visitor_location_country_id', 'prop_country_id',
                     'prop_id', 'prop_brand_bool', 'promotion_flag', 'position',
                     'srch_destination_id', 'srch_saturday_night_bool', 'random_bool',
-                    'click_bool', 'booking_bool'                  
+                    'click_bool', 'booking_bool'
                    ]
-numerical_cols = ['visitor_hist_starrating', 'visitor_hist_adr_usd', 
+numerical_cols = ['visitor_hist_starrating', 'visitor_hist_adr_usd',
                   'prop_starrating', 'prop_review_score', 'prop_location_score1', 'prop_location_score2',
-                  'prop_log_historical_price', 'price_usd', 
-                  'srch_length_of_stay', 'srch_booking_window', 
+                  'prop_log_historical_price', 'price_usd',
+                  'srch_length_of_stay', 'srch_booking_window',
                   'srch_adults_count', 'srch_children_count',
-                  'srch_room_count', 'srch_query_affinity_score', 
+                  'srch_room_count', 'srch_query_affinity_score',
                   'orig_destination_distance', 'gross_bookings_usd'
                   ]
+
+# %% [markdown]
+# # Some analysis
 
 # %%
 # Plot number of unique values for categorical
@@ -185,11 +171,12 @@ plt.xlabel('Logarithmic frequency')
 plt.show()
 
 # %%
-train_data[categorical_cols]
+train_data[numerical_cols].boxplot()
+
+# %%
 
 # %% [markdown]
-# # Feature Preprocessing
-# ---
+# # Feature Pnumerical_cols--
 
 # %% [markdown]
 # ## Feature Engineering
@@ -201,40 +188,73 @@ train_data[categorical_cols]
 numerical_engineered = []
 categorical_engineered = []
 
-if config.feature_engineering:
-    # Do some date feature engineering     
-    time = pd.to_datetime(train_data['date_time'])
-    train_data['month'] = time.dt.month
-    train_data['year'] = time.dt.year
-    
-    # Check if a user comes from same country
-    train_data['same_country_visitor_prop'] = np.where(
-        train_data['visitor_location_country_id'] == train_data['prop_country_id'], 
-        1, 0
-    )
-    
-    # Check if Expedia has no competitors that deal better prices.     
-    train_data['viable_comp'] = np.where(
-                      (train_data['comp1_rate']== -1)& (train_data['comp1_inv']== 0) |
-                      (train_data['comp2_rate']== -1)& (train_data['comp2_inv']== 0) |
-                      (train_data['comp3_rate']== -1)& (train_data['comp3_inv']== 0) |
-                      (train_data['comp4_rate']== -1)& (train_data['comp4_inv']== 0) |
-                      (train_data['comp5_rate']== -1)& (train_data['comp5_inv']== 0) |
-                      (train_data['comp6_rate']== -1)& (train_data['comp6_inv']== 0) |
-                      (train_data['comp7_rate']== -1)& (train_data['comp7_inv']== 0) |
-                      (train_data['comp8_rate']== -1)& (train_data['comp8_inv']== 0) 
-                      ,1,0)
+# TODO: Make th
+def transform_features(df):
+        # Do some date feature engineering
+    if 'date_time' in df.columns:
+        print("Setting month and year")
+        time = pd.to_datetime(df['date_time'])
+        df['month'] = time.dt.month
+        df['year'] = time.dt.year
 
-    # Average location scores of property    
-    mcol = train_data.loc[:,['prop_location_score1', 'prop_location_score2']]
-    train_data['prop_mean_score'] = mcol.mean(axis=1)
-    
-    # Add categorical features to our list of categorical columns     
+    # Check if a user comes from same country
+    if 'visitor_location_country_id' in df.columns and 'prop_country_id' in df.columns:
+        print("Setting same-country-visitor")
+        df['same_country_visitor_prop'] = np.where(
+            df['visitor_location_country_id'] == df['prop_country_id'],
+            1, 0
+        )
+
+    try:
+        print("Setting viable comp score")
+
+        # Check if Expedia has no competitors that deal better prices.
+        df['viable_comp'] = np.where(
+                          (df['comp1_rate']== -1)& (df['comp1_inv']== 0) |
+                          (df['comp2_rate']== -1)& (df['comp2_inv']== 0) |
+                          (df['comp3_rate']== -1)& (df['comp3_inv']== 0) |
+                          (df['comp4_rate']== -1)& (df['comp4_inv']== 0) |
+                          (df['comp5_rate']== -1)& (df['comp5_inv']== 0) |
+                          (df['comp6_rate']== -1)& (df['comp6_inv']== 0) |
+                          (df['comp7_rate']== -1)& (df['comp7_inv']== 0) |
+                          (df['comp8_rate']== -1)& (df['comp8_inv']== 0)
+                          ,1,0)
+    except:
+        print("Cant find comprate probably")
+
+    # Average location scores of property
+    try:
+        print("Setting mean score of location scores")
+        mcol = df.loc[:,['prop_location_score1', 'prop_location_score2']]
+        df['prop_mean_score'] = mcol.mean(axis=1)
+    except:
+        print("Cant find prop_location columns")
+
+    try:
+        print("Removing our columns from our dataframe")
+
+        df = df.drop(columns=['date_time', 'visitor_location_country_id', 'prop_country_id',
+                                     'prop_location_score1', 'prop_location_score2'])
+
+        for i in range(8):
+            df = df.drop(columns=['comp' + str(i+1) + '_rate'])
+            df = df.drop(columns=['comp' + str(i+1) + '_inv'])
+            df = df.drop(columns=['comp' + str(i+1) + '_rate_percent_diff'])
+    except:
+        print("Probably dropped these columns already")
+
+    return df
+
+if config.feature_engineering:
+    print("We are doing feature engineering now")
+    train_data = transform_features(train_data)
+
+    # Add categorical features to our list of categorical columns
     categorical_engineered = ['same_country_visitor_prop', 'viable_comp']
     for col in categorical_engineered:
         categorical_cols.append(col)
-        
-    # Add numerical features to our list of numerical columns     
+
+    # Add numerical features to our list of numerical columns
     numerical_engineered = ['prop_mean_score', 'month', 'year']
     for col in numerical_engineered:
         numerical_cols.append(col)
@@ -245,7 +265,7 @@ if config.feature_engineering:
 # %%
 if config.feature_engineering:
     try:
-        train_data = train_data.drop(columns=['date_time', 'visitor_location_country_id', 'prop_country_id', 
+        train_data = train_data.drop(columns=['date_time', 'visitor_location_country_id', 'prop_country_id',
                                  'prop_location_score1', 'prop_location_score2'])
         for i in range(8):
             train_data = train_data.drop(columns=['comp' + str(i+1) + '_rate'])
@@ -265,11 +285,13 @@ if config.feature_engineering:
 # ## Data cleanup: Imputing missing values
 
 # %%
-# We will have to cleanup our data next up. Let's first impute the missing columns. 
+# We will have to cleanup our data next up. Let's first impute the missing columns.
 # To do this we search for the columns with nans
+print("\n FEATURE IMPUTING: \n")
+
 na_cols = train_data.isna().any()
 nan_cols = train_data.columns[na_cols]
-print("These are columns with NaN:")
+print("\tThese are columns with NaN:")
 print(nan_cols.to_list())
 
 # %% [markdown]
@@ -280,7 +302,9 @@ print(nan_cols.to_list())
 
 # %%
 # Simple numerical impute: select numerical data, fill it with -1
-if config.naive_imputing:    
+
+if config.naive_imputing:
+    print("\tWe will naively impute and set numericals to -1")
     imputed_numerical_data = train_data[nan_cols].filter(regex='[^comp\d_(rate|inv)$]')
     imputed_numerical_data = imputed_numerical_data.fillna(-1)
     train_data.update(imputed_numerical_data)
@@ -291,7 +315,8 @@ if config.naive_imputing:
 
 # %%
 # Simple naive categorical impute
-if config.naive_imputing:    
+if config.naive_imputing:
+    print("\tWe will naively impute and set categoricals to -2")
     na_cols = train_data.columns[train_data.isna().any()]
     imputed_categorical_data = train_data[na_cols].fillna(-2)
     train_data.update(imputed_categorical_data)
@@ -307,38 +332,44 @@ if config.naive_imputing:
 # %%
 #remove columns with over 50% nans
 if not config.naive_imputing:
+    print("\tWe will remove null values larger than 0.5")
     for column in train_data.columns:
         if train_data[column].isnull().sum()/len(train_data) > 0.5:
             train_data = train_data.drop(columns=column, axis=1)
 
 train_data.isnull().sum()/len(train_data)
 
+# %%
+not config.naive_imputing
+
 # %% [markdown]
 # ### slow method of averaging mean values
 
 # %%
+from sklearn.preprocessing import RobustScaler, MinMaxScaler
+
 if not config.naive_imputing:
     #fill in nans with mean values:
     na_cols = train_data.isna().any()
     nan_cols = train_data.columns[na_cols]
     for column in nan_cols:
         print (column)
-        if column in ['visitor_hist_starrating', 'visitor_hist_adr_usd',  
-                         'srch_length_of_stay', 'srch_booking_window', 
+        if column in ['visitor_hist_starrating', 'visitor_hist_adr_usd',
+                         'srch_length_of_stay', 'srch_booking_window',
                          'srch_adults_count', 'srch_children_count',
-                         'srch_room_count'                      
+                         'srch_room_count'
                         ]:
             train_data[column] = train_data.groupby('srch_id').transform(lambda x: x.fillna(x.mean()))
-        elif column in ['prop_starrating', 'prop_review_score', 
-                           'prop_location_score1', 'prop_location_score2', 
+        elif column in ['prop_starrating', 'prop_review_score',
+                           'prop_location_score1', 'prop_location_score2',
                            'prop_log_historical_price', 'price_usd',
-                           'search_', 'orig_destination_distance',  
+                           'search_', 'orig_destination_distance',
                            'srch_query_affinity_score'
                           ]:
             train_data[column] = train_data.groupby('prop_id').transform(lambda x: x.fillna(x.mean()))
 
     train_data.isnull().sum()/len(train_data)
-    
+
 # if config.naive_imputing:
     # Here we definehow we would like to encode
 
@@ -352,11 +383,18 @@ oh_pipeline = Pipeline([
 ])
 
 # Encode the numerical values
-num_impute = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=-1)
 num_scale_encoder = StandardScaler()
+num_impute = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=-1)
 num_pipeline = Pipeline([
     ('impute', num_impute),
     ('encode', num_scale_encoder)
+])
+
+num_outlier_scale_encoder = RobustScaler()
+num_scale_impute = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=-1)
+num_scale_outliers_pipeline = Pipeline([
+    ('impute', num_scale_impute),
+    ('encode', num_outlier_scale_encoder)
 ])
 
 # %% [markdown]
@@ -379,6 +417,8 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 # %%
 chosen_columns = categorical_cols + numerical_cols
 
+print("\n FEATURE SELECTION: \n")
+
 # Manual feature-selection
 if config.pre_feature_selection:
     print("Setting pre feature selection")
@@ -386,11 +426,14 @@ if config.pre_feature_selection:
 
 # Manual feature engineering
 if config.feature_engineering:
-    print("Including feature engineering")
+    print("We will incl feature engineering")
     chosen_columns = [*chosen_columns, *categorical_engineered, *numerical_engineered]
 
 for column in categorical_cols:
-    train_data[column]=train_data[column].astype('category')
+    try:
+        train_data[column]=train_data[column].astype('category')
+    except:
+        print(f"Error setting column {column} to categorical!")
 
 # Ensure only intersection of chosen columns and present columns are in data now
 chosen_columns = list(set(chosen_columns) & set(train_data.columns))
@@ -399,16 +442,23 @@ chosen_columns = list(set(chosen_columns) & set(train_data.columns))
 chosen_oh_cols = list(set(chosen_columns) & set(categorical_cols))
 chosen_num_cols = list(set(chosen_columns) & set(numerical_cols))
 
-print(f"We have {len(chosen_columns)} columns now!")
-print(f"\t Out of those, {len(chosen_oh_cols)} are categorical now!")
-print(f"\t Out of those, {len(chosen_num_cols)} are numerical now!")
+print(f"\tWe have {len(chosen_columns)} columns now!")
+print(f"\tThey are: {chosen_columns}")
+print(f"\t\t Out of those, {len(chosen_oh_cols)} are categorical now!")
+print(f"\t\t Out of those, {len(chosen_num_cols)} are numerical now!")
 
 # %%
+print("\n Feature ENCODING: \n")
+
 chosen_train_data = train_data[chosen_columns]
+
+chosen_num_cols = [i for i in chosen_num_cols if 'price' not in i]
+chosen_num_scale_cols = ['price_usd']
 
 df_transformer = ColumnTransformer([
     ('oh', oh_pipeline, chosen_oh_cols),
     ('num', num_pipeline, chosen_num_cols),
+    ('num_scale', num_scale_outliers_pipeline, chosen_num_scale_cols),
 ], remainder='drop')
 
 # We fit this transformer on our training data, and transform/encode our training data
@@ -416,7 +466,9 @@ encoded_X = df_transformer.fit_transform(chosen_train_data)
 
 # We also represent this same X using the original columns.
 new_oh_columns = df_transformer.named_transformers_.oh.named_steps.encode.get_feature_names(chosen_oh_cols)
-encoded_columns = [ *new_oh_columns, *chosen_num_cols]
+encoded_columns = [ *new_oh_columns, *chosen_num_cols, *chosen_num_scale_cols]
+print(f"\tEncoded our X to have shape {encoded_X.shape}")
+print(f"\tEncoded columns are {encoded_columns}")
 
 # %% [markdown]
 # ## Feature selection
@@ -431,6 +483,7 @@ bool_vec = np.ones(encoded_X.shape[1], dtype=bool)
 
 # %%
 ##### We apply feature selection using the model from our config
+print("\n AUTOMATED FEATURE SELECTION: \n")
 
 # Use PCA feature selection method
 if config.dimensionality_reduc_selection and not config.algo_feature_selection:
@@ -440,14 +493,14 @@ if config.dimensionality_reduc_selection and not config.algo_feature_selection:
 
 # Use linear feature-selection methods
 if config.algo_feature_selection and not config.dimensionality_reduc_selection:
-    # If classifier is not None, we use a classifier as feature-selection helper     
-    if config.classifier is not None:    
+    # If classifier is not None, we use a classifier as feature-selection helper
+    if config.classifier is not None:
         classifier = config.classifier(**config.classifier_dict)
         feature_selector = config.feature_selection(classifier, **config.feature_selection_dict)
         print(f"Applying feature selection using linear feature selection methods \n,"f"{type(feature_selector).__name__}, using {type(classifier).__name__} as classifier.")
         feature_encoded_X = feature_selector.fit_transform(encoded_X, y)
         bool_vec = feature_selector.support_
-        
+
     # Else we use a feature scoring method
     else:
         scoring_func = config.feature_selection_scoring_func
@@ -484,17 +537,18 @@ srch = np.array(srch_id_col)
 
 # %%
 from sklearn.model_selection import GroupShuffleSplit
+print("\n TRAINING THE MODEL: \n")
 
 # feature_encoded_X = encoded_X
 # Split data into (default) 80% train and 20% validation, maintaining the groups however.
-print("Going to split data now!")
+print("\tGoing to split data now!")
 train_inds, val_inds = next(GroupShuffleSplit(
-    test_size=config.valid_size, 
-    n_splits=2, 
+    test_size=0.05,
+    n_splits=2,
     random_state = 7
 ).split(encoded_X, groups=srch_id_col))
 
-print(f"Will train with {len(train_inds)} and validate with {len(val_inds)} amount of data.")
+print(f"\tWill train with {len(train_inds)} and validate with {len(val_inds)} amount of data.")
 
 # Split train / validation by their indices
 X_train = encoded_X[train_inds]
@@ -506,32 +560,48 @@ y_val = np.array(y[val_inds])
 query_train = get_user_groups_from_df(train_data.iloc[train_inds])
 query_val = get_user_groups_from_df(train_data.iloc[val_inds])
 
-print("Ready to rank!")
+print("\tReady to rank!")
 
 # %%
 # Number of sanity checks
-assert len(list(y_train)) == len(X_train), "Mismatch in sample-size between feature-length and labels for training"
+assert len(list(y_train)) == (X_train.shape[0]), "Mismatch in sample-size between feature-length and labels for training"
 assert len(list(y_train)) == np.sum(query_train), "Mismatch in sample-size sum query-train and number of labels for training"
 
-assert len(list(y_val)) == len(X_val), "Mismatch in sample-size between feature-length and labels for validation"
+assert len(list(y_val)) == X_val.shape[0], "Mismatch in sample-size between feature-length and labels for validation"
 assert len(list(y_val)) == np.sum(query_val), "Mismatch in sample-size sum query-train and number of labels for validation"
 
 # Ensure no 0's in query train
 
 assert (0 not in query_train), "There is a 0 in query train! This will crash your LightBGM!"
 
+print("\t Passed our sanity checks!")
+
 # %%
 import lightgbm as lgb
 
 # %%
+# book_w = 10
+# click_w = 3
+
+# y_pos = train_data['position']
+# y_book = train_data['booking_bool']
+# y_click = train_data['click_bool']
+# y_combined = book_w * np.array(y_book) + click_w * np.array(y_click) + np.round(2 * (1 / np.array(y_pos)))
+# y_train = y_combined[train_inds]
+# y_val = np.array(y_book[val_inds])
+
+# %%
+# 221879
 # We define our ranker (default parameters)
 eval_results = []
-gbm = lgb.LGBMRanker(n_estimators=500)
+gbm = lgb.LGBMRanker(n_estimators=250, num_leaves=50, min_data_in_leaf=200)
 
 def store_results(results):
     callb = lgb.print_evaluation(dict)
     eval_results.append(results.evaluation_result_list)
-    return callb    
+    return callb
+
+print("\t Training now!")
 
 gbm.fit(X_train, y_train, callbacks=[store_results],group=query_train,
         eval_set=[(X_val, y_val)], eval_group=[query_val],
@@ -539,6 +609,8 @@ gbm.fit(X_train, y_train, callbacks=[store_results],group=query_train,
 
 # %%
 import json
+
+print("\t Finished training!")
 
 # Extract feature importances, normalize them, and store them in the config
 feature_importances = gbm.feature_importances_
@@ -551,7 +623,7 @@ feature_importances_normalized_sorted = feature_importances_normalized[ranking_f
 feature_names = np.array(encoded_columns)[ranking_features_idx]
 
 # Combine features with the names
-features_by_score = list(zip(feature_names, feature_importances_normalized_sorted))
+features_by_score = list(zip(feature_names, feature_importances_normalized_sorted))[:10]
 
 print(f"Best features by score!: \n {features_by_score}")
 # Store it in the config
@@ -619,23 +691,27 @@ except:
 # ## Testing with LGBM-Ranker
 
 # %%
+print("\n Testing Time!: \n")
+
 # Read test data, and use the same columns as was used for training
 df_test_data = pd.read_csv('data/test_set_VU_DM.csv')
+
+if config.feature_engineering:
+    df_test_data = transform_features(df_test_data)
+
 chosen_test_data = df_test_data[chosen_columns]
 
 # Apply transformations (encoding + selection)
 encoded_test_data = df_transformer.transform(chosen_test_data)
 
-if config.PCA_use:
+if config.dimensionality_reduc_selection:
     filtered_test_data = pca.transform(encoded_test_data)
 else:
     filtered_test_data = encoded_test_data[:, bool_vec]
-                                    
+
 X_test = filtered_test_data
 
-
-# %%
-filtered_test_data
+print(f"Test data now shaped like {X_test.shape}")
 
 
 # %% [markdown]
@@ -654,11 +730,11 @@ def predict_for_group(X_test, group_idxs, df_test_data):
     X_test_group = X_test[group_idxs]
     preds = gbm.predict(X_test_group)
     preds = preds.argsort()[::-1] # Reverses
-    
+
     # Get th
     pred_idxs = group_idxs[preds]
     pred_props = df_test_data.loc[pred_idxs, ['srch_id', 'prop_id']]
-    
+
     return pred_props
 
 # %%
@@ -670,7 +746,7 @@ def predict_for_group(X_test, group_idxs, df_test_data):
 # for i, idx_group in enumerate(groups_by_idxs):
 #     preds = predict_for_group(X_test, idx_group, df_test_data)
 #     result.append(preds)
-    
+
 #     if i % 10000 == 0:
 #         print(f"Doing group {i + 1} / {len(groups_by_idxs)} now")
 
@@ -685,6 +761,8 @@ def predict_for_group(X_test, group_idxs, df_test_data):
 pred_all = gbm.predict(X_test)
 df_test_data['pred'] = pred_all
 
+print("\t Finished prediction!")
+
 # %%
 pred_all
 
@@ -693,12 +771,6 @@ pred_all
 sorted_preds = df_test_data[['srch_id', 'prop_id', 'pred']].sort_values(by=['srch_id', 'pred'], ascending=[True, False]).reset_index()
 
 # Save
-sorted_preds[['srch_id', 'prop_id']].to_csv('results.csv', index=False)
+sorted_preds[['srch_id', 'prop_id']].to_csv(f'results/predictions_{config.label}.csv', index=False)
 
-# %%
-sorted_preds
-
-# %%
-pd.read_csv('results.csv', nrows=100)
-
-# %%
+print(f"\t Stored final prediction in results_{config.label}.csv! ")
